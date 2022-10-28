@@ -33,6 +33,8 @@ while(True):
 		# print(frame.shape[0])
 
 	frame = cv2.flip(frame, 1)
+	
+	
 	imgRGB = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
 	results = hands.process(imgRGB)
 	HANDS = results.multi_hand_landmarks
@@ -44,9 +46,16 @@ while(True):
 			forefinger = [int(handLms.landmark[8].x * frame.shape[1]),int(handLms.landmark[8].y * frame.shape[0])]
 			HowMuchHands = HowMuchHands + 1
 			frame = cv2.circle(frame, forefinger, 10, (0,0,225), -1)
-			print("1",forefinger)
-			# hands_Pose = hands_Pose.append(test)
+			# print("1",forefinger)
+			hands_Pose.append(forefinger)
 			# print("2",hands_Pose)
+			if len(hands_Pose) == 2:
+				if (hands_Pose[1][0] >= 580) and (hands_Pose[1][1] >= 420):
+					frame = cv2.circle(frame, (hands_Pose[0][0],hands_Pose[0][1]), 10, (255,0,0), -1)
+					newblack = cv2.circle(newblack, (hands_Pose[0][0],hands_Pose[0][1]), 5, (255,0,0), -1)
+
+				pass
+				# print(len(hands_Pose))
 		# for handLms in results.multi_hand_landmarks:
 			# mpDraw.draw_landmarks(frame,handLms,mpHand.HAND_CONNECTIONS,handLmsStyle,handConStyle)
 
@@ -55,6 +64,8 @@ while(True):
 	fps =  1/(cTime-pTime)
 	pTime = cTime
 	cv2.putText(frame, str(int(fps)), (10, 40), cv2.FONT_HERSHEY_SIMPLEX,1,(0, 255, 255), 1, cv2.LINE_AA)
+	cv2.rectangle(frame, (frame.shape[1]-60,frame.shape[0]-60), (frame.shape[1],frame.shape[0]), (0, 255, 0), 2)
+	print((frame.shape[1]-60,frame.shape[0]-60))
 	cv2.imshow("live",frame)
 	cv2.imshow("newblack",newblack)
 	# time.sleep(0.5)	#跑影片要記得設time.sleep，跑視訊鏡頭要記得關  我花了40分鐘在debug為甚麼我的fps不到1
