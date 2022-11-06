@@ -5,15 +5,16 @@ import numpy as np
 import math
 
 
-Main_hand = "Left" #設定主手 Left/Right
+Main_hand = "Right" #設定主手 Left/Right
 newblack = np.full((10,10,3),(0,0,0),np.uint8)	#產生10x10黑色的圖
 mpHand = mp.solutions.hands	#抓手	001
 hands = mpHand.Hands()		#001
-path = 0 #本地端可以改成這個，用筆電的視訊鏡頭
+path = 1 #本地端可以改成這個，用筆電的視訊鏡頭
 cap = cv2.VideoCapture(path)	#攝影機變數
 pTime = 0 	#起始時間
 f_round = True 	#第一次跑
-
+color = (0,0,255)
+dots=[]
 # mpDraw = mp.solutions.drawing_utils
 # handLmsStyle = mpDraw.DrawingSpec(color=(0,255,0),thickness = 5 )	#設定點的參數
 # handConStyle = mpDraw.DrawingSpec(color=(255,255,255),thickness = 2 )	#設定線的參數
@@ -67,13 +68,28 @@ def hand_angle(hand_):#計算五隻手指的角度函式
 	angle_list.append(angle_)
 	# print(angle_list)
 	return angle_list
+def hand_pos(finger_angle):# 根據手指角度的串列內容，返回對應的手勢名稱
+    f1 = finger_angle[0]   # 大拇指角度
+    f2 = finger_angle[1]   # 食指角度
+    f3 = finger_angle[2]   # 中指角度
+    f4 = finger_angle[3]   # 無名指角度
+    f5 = finger_angle[4]   # 小拇指角度
 
+    # 小於 50 表示手指伸直，大於等於 50 表示手指捲縮
+    if f1>=50 and f2<50 and f3<50 and f4>=50 and f5>=50:
+        return '2'
+    if f1>=50 and f2<50 and f3>50 and f4>=50 and f5>=50:
+        return '1'
+    elif f1<50 and f2<50 and f3<50 and f4<50 and f5<50:
+        return '5'
+    else:
+        return ''
 def PointPprocessing(hands_Pose,hands_LR):	#分別處理左右手座標之副程式	(左手要做什麼，右手要做什麼 分別計算)
-	global frame,Main_hand,newblack
+	global frame,Main_hand,newblack,color
 	finger_points = []			# 記錄手指節點座標的串列
-	color=(0, 0, 225)
 	Hand_Mark_blue = (255,0,0)	#顏色藍色
 	Hand_Mark_red = (0,0,255)	#顏色紅色
+	
 	for i in range(len(hands_LR)):
 		Pose = (hands_Pose[hands_LR.index(hands_LR[i])])
 		Pose1 = [int(Pose.landmark[8].x * frame.shape[1]),int(Pose.landmark[8].y * frame.shape[0])]
@@ -81,7 +97,7 @@ def PointPprocessing(hands_Pose,hands_LR):	#分別處理左右手座標之副程
 
 		if hands_LR[i] == Main_hand:	#主手
 
-
+			
 			frame = cv2.circle(frame, Pose1, 10, Hand_Mark_blue, -1)
 			forefinger0 = [int(Pose.landmark[8].x * frame.shape[1]), int(Pose.landmark[8].y * frame.shape[0])]  # 食指頂端座標
 			frame = cv2.circle(frame, forefinger0, 10, (0, 0, 225), -1)
@@ -95,18 +111,38 @@ def PointPprocessing(hands_Pose,hands_LR):	#分別處理左右手座標之副程
 			if finger_points:
 				# print(len(finger_points))
 				finger_angle = hand_angle(finger_points) # 計算手指角度，回傳長度為 5 的串列
+				text = hand_pos(finger_angle)            # 取得手勢所回傳的內容
 				# print(finger_angle)
 				# 小於 50 表示手指伸直，大於等於 50 表示手指捲縮 ,finger_angle[0]大拇指角度,finger_angle[1]食指角度,finger_angle[2]中指角度,finger_angle[3]無名指角度,finger_angle[4]小拇指角度
-				if finger_angle[1]<50 and finger_angle[0]>50 and finger_angle[2]>50 and finger_angle[3]>50 and finger_angle[4]>50 and forefinger0[0]>60 and  forefinger0[1]>60:#當食指伸直後進行畫圖
-					frame = cv2.circle(frame, (forefinger0[0], forefinger0[1]), 10, color, -1)#color是指顏色上面有預設值紅色
-					newblack = cv2.circle(newblack, (forefinger0[0], forefinger0[1]), 10, color, -1)
+				if text=='1':#當食指伸直後進行畫圖
+					fx = int(finger_points[8][0])        # 如果手勢為 1，記錄食指末端的座標
+					fy = int(finger_points[8][1])
+					dots.append([fx,fy])             # 記錄食指座標
+					#print(dots)
+					dl = len(dots)
+					if dl>1:
+						dx1 = dots[dl-2][0]
+						dy1 = dots[dl-2][1]
+						dx2 = dots[dl-1][0]
+						dy2 = dots[dl-1][1]
+						cv2.line(newblack,(dx1,dy1),(dx2,dy2),color,5)  # 在黑色畫布上畫圖
+					
 				#print(forefinger0[0])食指x跟y
 				#print(forefinger0[1])
-				if finger_angle[1]<50 and finger_angle[0]<50 and finger_angle[2]<50 and finger_angle[3]<50 and finger_angle[4]<50 and forefinger0[0]<=20 and  forefinger0[1]<=20:#手指全部張開並且移到綠框時畫筆顏色變為綠
-					color=(0, 255, 0)#顏色為綠色
-				# print(color)
-				if finger_angle[1]<50 and finger_angle[0]<50 and finger_angle[2]<50 and finger_angle[3]<50 and finger_angle[4]<50 and forefinger0[0]<=20 and  20<=forefinger0[1]<=40:#手指全部張開並且食指移到紅色框格內畫筆顏色變為紅
-					color=(0, 0, 255)#顏色為紅色
+				elif text == '5':
+					#dots. clear ( )
+					fx = int(finger_points[8][0])        # 如果手勢為 1，記錄食指末端的座標
+					fy = int(finger_points[8][1])
+					if fy>=20 and fy<=60 and fx>=20 and fx<=60:
+						color = (0,0,255,255)            # 如果食指末端碰到紅色，顏色改成紅色
+					elif fy>=20 and fy<=60 and fx>=80 and fx<=120:
+						color = (0,255,0,255)            # 如果食指末端碰到綠色，顏色改成綠色
+					elif fy>=20 and fy<=60 and fx>=140 and fx<=180:
+						color = (255,0,0,255)            # 如果食指末端碰到藍色，顏色改成藍色
+					else:
+						dots.clear()
+				
+				
 
 
 
@@ -127,6 +163,7 @@ def HandsIdentify(imgRGB):		#副程式處理"手部座標"、"左右手順序"
 	print(hands_LR)
 	return hands_Pose,hands_LR
 
+
 while(True):
 	ret,frame = cap.read()
 	if not ret:		#判定有沒有畫面存在
@@ -144,6 +181,9 @@ while(True):
 	pTime = cTime
 	cv2.putText(frame, str(int(fps)), (10, 40), cv2.FONT_HERSHEY_SIMPLEX,1,(255, 255,0), 1, cv2.LINE_AA)
 	# print(fps)
+	cv2.rectangle(frame,(20,20),(60,60),(0,0,255,255),-1)   # 在畫面上方放入紅色正方形
+	cv2.rectangle(frame,(80,20),(120,60),(0,255,0,255),-1)  # 在畫面上方放入綠色正方形
+	cv2.rectangle(frame,(140,20),(180,60),(255,0,0,255),-1) # 在畫面上方放入藍色正方形
 	cv2.imshow("live",frame)
 	cv2.imshow("newblack",newblack)
 	# time.sleep(0.5)	#跑影片要記得設time.sleep，跑視訊鏡頭要記得關  我花了40分鐘在debug為甚麼我的fps不到1
