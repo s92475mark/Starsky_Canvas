@@ -172,6 +172,8 @@ def PointPprocessing(hands_Pose,hands_LR):	#分別處理左右手座標之副程
 						color = (255,0,0,255)            # 如果食指末端碰到藍色，顏色改成藍色
 					else:
 						dots.clear()
+				else:
+						dots.clear()
 		else:	#副手運算
 			frame = cv2.circle(frame, Pose1, 10, Hand_Mark_blue, -1)
 
