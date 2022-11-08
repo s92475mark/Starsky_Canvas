@@ -14,7 +14,7 @@ cap = cv2.VideoCapture(path)	#攝影機變數
 pTime = 0 	#起始時間
 f_round = True 	#第一次跑
 color = (0,0,255)
-lost_pix = 130 	#縮小禎數
+lost_pix = 1 	#縮小比例0~1之間
 offset = [0,0]	#偏移(x為正往右偏移，y為正往下偏移)
 dots=[]
 
@@ -22,10 +22,14 @@ dots=[]
 # handLmsStyle = mpDraw.DrawingSpec(color=(0,255,0),thickness = 5 )	#設定點的參數
 # handConStyle = mpDraw.DrawingSpec(color=(255,255,255),thickness = 2 )	#設定線的參數
 def Mouse(Canvas,CanvasSize,MousePose):	#鼠標層覆蓋上畫布
+	global offset,lost_pix
+	# cv2.imshow("newblack11",newblack11)
 	MouseLevel = np.full((Canvas.shape[0],Canvas.shape[1],3),(0,0,0),np.uint8)	#產生與newblack大小相同黑色的圖
+	MousePose = (int((MousePose[0] - offset[0]) / lost_pix),int((MousePose[1] - offset[1]) / lost_pix))
+
 	MouseLevel = cv2.circle(MouseLevel, MousePose, 10, (255,255,255), -1)	#在這層上面點上白色鼠標
-	# cv2.imshow("MouseLevel",MouseLevel)
 	TrueCanvas = cv2.add(Canvas,MouseLevel)
+	print("TrueCanvas",TrueCanvas.shape)
 	cv2.rectangle(frame,(20,20),(60,60),(0,0,255,255),-1)   # 在畫面上方放入紅色正方形
 	cv2.rectangle(frame,(80,20),(120,60),(0,255,0,255),-1)  # 在畫面上方放入綠色正方形
 	cv2.rectangle(frame,(140,20),(180,60),(255,0,0,255),-1) # 在畫面上方放入藍色正方形
@@ -97,18 +101,25 @@ def hand_angle(hand_):#計算五隻手指的角度函式
 	# print(angle_list)
 	return angle_list
 
-def ScalingDisplacement(newblack,lost_pix):	#畫布的縮放位移
+def ScalingDisplacement(newblack,lost_pix,offset):	#畫布的縮放位移
 	smailblack = newblack.copy()	#複製
-	smailblack1 = smailblack[lost_pix:(newblack.shape[0]-lost_pix),lost_pix:(newblack.shape[1]-lost_pix)]	#
+	# smailblack1 = smailblack[int(lost_pix+offset[1]):int(newblack.shape[0]-lost_pix+offset[1]),
+								# int(lost_pix + offset[0]):int(newblack.shape[1]-lost_pix + offset[0])]	#
+	smailblack1 = smailblack[(offset[1]):(int(newblack.shape[0] * lost_pix)) + offset[1],offset[0]:(int(newblack.shape[1] * lost_pix)) + offset[0]]
+	print("smailblack1",smailblack1.shape)
+	newblack1 = newblack.copy()
+	cv2.rectangle(newblack1, ((offset[0]),(offset[1])),
+							(int(newblack.shape[1] * lost_pix + offset[0]),int(newblack.shape[0]*lost_pix+offset[1])), (255,255,0), 3)
 	smailblack1 = cv2.resize(smailblack1, (newblack.shape[1],newblack.shape[0]), interpolation=cv2.INTER_AREA)
-	hands_Pose1,hands_LR = HandsIdentify(imgRGB)	#副程式處理"手部座標"、"左右手順序"
-	MousePose = PointPprocessing(hands_Pose1,hands_LR,smailblack1)	#分別處理左右手座標之副程式
-	newblack3 = cv2.resize(smailblack1, ((newblack.shape[1]-(lost_pix * 2)),(newblack.shape[0]-(lost_pix * 2))), interpolation=cv2.INTER_AREA)
-	newblack[lost_pix:(newblack.shape[0]-lost_pix),lost_pix:(newblack.shape[1]-lost_pix)] = newblack3
-	return smailblack1,MousePose
+	cv2.imshow("newblack1",newblack1)
+	
+	# newblack3 = cv2.resize(smailblack1, ((newblack.shape[1]-(lost_pix * 2)),(newblack.shape[0]-(lost_pix * 2))), interpolation=cv2.INTER_AREA)
+	# newblack[lost_pix:(newblack.shape[0]-lost_pix),lost_pix:(newblack.shape[1]-lost_pix)] = newblack3
+	
+	return smailblack1
 
 
-def PointPprocessing(hands_Pose,hands_LR,smailblack1):	#分別處理左右手座標之副程式	(左手要做什麼，右手要做什麼 分別計算)
+def PointPprocessing(hands_Pose,hands_LR):	#分別處理左右手座標之副程式	(左手要做什麼，右手要做什麼 分別計算)
 	global frame,color,dots
 	Main_hand = "Left" #設定主手 Left/Right
 	finger_points = []			# 記錄手指節點座標的串列
@@ -144,7 +155,8 @@ def PointPprocessing(hands_Pose,hands_LR,smailblack1):	#分別處理左右手座
 						dy1 = dots[dl-2][1]
 						dx2 = dots[dl-1][0]
 						dy2 = dots[dl-1][1]
-						cv2.line(smailblack1,(dx1,dy1),(dx2,dy2),color,5)  # 在黑色畫布上畫圖
+						cv2.line(newblack,(dx1,dy1),(dx2,dy2),color,5)  # 在黑色畫布上畫圖
+
 						# smailblack1 = cv2.circle(smailblack1, (forefinger0[0], forefinger0[1]), 5, color, -1)
 				#print(forefinger0[0])食指x跟y
 				#print(forefinger0[1])
@@ -188,16 +200,18 @@ if __name__ == '__main__':
 		if f_round:	#判斷是不是第一次跑，是:把黑色畫布放大成跟鏡頭解析度一樣大
 			newblack = cv2.resize(newblack, CanvasSize, interpolation=cv2.INTER_AREA)
 			f_round = False
-		cv2.imshow("newblack",newblack)
+		
 		frame = cv2.flip(frame, 1)	#畫面左右翻轉
 		imgRGB = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)	#將影像通道從BGR轉成RGB
-		smailblack1,MousePose = ScalingDisplacement(newblack,lost_pix)	#畫布處理
+		smailblack1 = ScalingDisplacement(newblack,lost_pix,offset)	#縮小畫布
+		hands_Pose1,hands_LR = HandsIdentify(imgRGB)	#副程式處理"手部座標"、"左右手順序"
+		MousePose = PointPprocessing(hands_Pose1,hands_LR)	#分別處理左右手座標之副程式
 		TrueCanvas = Mouse(smailblack1,CanvasSize,MousePose)	#加入鼠標 回傳最終畫布
 		cTime = time.time()
 		fps =  1/(cTime-pTime)
 		pTime = cTime
 		cv2.putText(frame, str(int(fps)), (10, 40), cv2.FONT_HERSHEY_SIMPLEX,1,(255, 255,0), 1, cv2.LINE_AA)
-		# print(fps)
+		print("newblack",newblack.shape)
 		cv2.imshow("live",frame)
 		cv2.imshow("TrueCanvas",TrueCanvas)
 		# time.sleep(0.5)	#跑影片要記得設time.sleep，跑視訊鏡頭要記得關  我花了40分鐘在debug為甚麼我的fps不到1
