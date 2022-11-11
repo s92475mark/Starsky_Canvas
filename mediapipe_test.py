@@ -184,7 +184,7 @@ def HandsIdentify(imgRGB):		#副程式處理"手部座標"、"左右手順序"
 	hands_Pose = [] #紀錄雙手食指座標
 	results = hands.process(imgRGB)			#手部辨識001
 	hands_LR = []	#紀錄左手或右手
-	hands_LR1 = results.multi_handedness	#medipi辨識左右手前置變數
+	hands_LR1 = results.multi_handedness	#mediapipe辨識左右手前置變數
 	if results.multi_hand_landmarks:		#判斷有沒有抓到手
 		for i in range(len(results.multi_hand_landmarks)):	#001 用迴圈一次處理一隻手的座標
 			hands_Pose.append(results.multi_hand_landmarks[i])
