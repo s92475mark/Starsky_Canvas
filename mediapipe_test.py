@@ -5,7 +5,6 @@ import numpy as np
 import math
 
 
-
 newblack = np.full((10,10,3),(0,0,0),np.uint8)	#產生10x10黑色的圖
 mpHand = mp.solutions.hands	#抓手	001
 hands = mpHand.Hands()		#001
@@ -32,9 +31,7 @@ def Mouse(Canvas,CanvasSize,MousePose):	#鼠標層覆蓋上畫布
 	TrueCanvas = cv2.add(Canvas,MouseLevel)
 	print("TrueCanvas",TrueCanvas.shape)
 	# print("TrueCanvas",TrueCanvas.shape)
-	# cv2.rectangle(frame,(20,20),(60,60),(0,0,255,255),-1)   # 在畫面上方放入紅色正方形
-	# cv2.rectangle(frame,(80,20),(120,60),(0,255,0,255),-1)  # 在畫面上方放入綠色正方形
-	# cv2.rectangle(frame,(140,20),(180,60),(255,0,0,255),-1) # 在畫面上方放入藍色正方形
+	
 	return TrueCanvas
 # 根據兩點的座標，計算角度
 def vector_2d_angle(v1, v2):
@@ -58,11 +55,11 @@ def hand_pos(finger_angle):# 根據手指角度的串列內容，返回對應的
 
 	# 小於 50 表示手指伸直，大於等於 50 表示手指捲縮
 	if f1>=50 and f2<50 and f3<50 and f4>=50 and f5>=50:
-		return '2'
+		return '2' #比ya
 	elif f1>=50 and f2<50 and f3>50 and f4>=50 and f5>=50:
-		return '1'
+		return '1' #伸出食指
 	elif f1 < 50 and f2 < 50 and f3 < 50 and f4 < 50 and f5 < 50:
-		return '5'
+		return '5' #
 	elif f1 > 50 and f2 > 50 and f3 > 50 and f4 > 50 and f5 > 50:
 		return '0'
 	elif f1 < 50 and f2 > 50 and f3 > 50 and f4 > 50 and f5 > 50:
@@ -135,28 +132,34 @@ def PointPprocessing(hands_Pose, hands_LR):  # 分別處理左右手座標之副
 	Hand_Mark_blue = (255, 0, 0)  # 顏色藍色
 	Hand_Mark_red = (0, 0, 255)  # 顏色紅色
 	Pose2 = [-10, -10]  # 鼠標座標
-	for i in range(len(hands_LR)):
-		Pose = (hands_Pose[hands_LR.index(hands_LR[i])])
-		Pose1 = [int(Pose.landmark[8].x * frame.shape[1]), int(Pose.landmark[8].y * frame.shape[0])]
+
+	#讀取雙手序列
+	for i in range(len(hands_LR)): 
+		Pose = (hands_Pose[hands_LR.index(hands_LR[i])]) #當前抓取到的手的全部座標
+		Pose1 = [int(Pose.landmark[8].x * frame.shape[1]), int(Pose.landmark[8].y * frame.shape[0])] #當前抓取到的手的食指座標
 		###################################雙手處理###############################################
-		if hands_LR[i] == Main_hand:  # 主手
+		if hands_LR[i] == Main_hand:  # 讀取到主手
 			if take == True:
 				Pose2 = [int(Pose.landmark[8].x * frame.shape[1]),
 						 int(Pose.landmark[8].y * frame.shape[0])]  # 主手食指 給鼠標用
-				frame = cv2.circle(frame, Pose1, 10, Hand_Mark_blue, -1)
-				forefinger0 = [int(Pose.landmark[8].x * frame.shape[1]),
+				frame = cv2.circle(frame, Pose1, 10, Hand_Mark_blue, -1) #鼠標藍色
+				forefinger0 = [int(Pose.landmark[8].x * frame.shape[1]), 
 							   int(Pose.landmark[8].y * frame.shape[0])]  # 食指頂端座標
-				frame = cv2.circle(frame, forefinger0, 10, (0, 0, 225), -1)
-				# 將 21 個節點換算成座標，記錄到 finger_points
+				frame = cv2.circle(frame, forefinger0, 10, Hand_Mark_red, -1) #鼠標紅色
+				
+				### 將主手 21 個節點換算成座標，記錄到 finger_points
 				for i in Pose.landmark:
 					x = i.x * frame.shape[1]
 					y = i.y * frame.shape[0]
 					finger_points.append((x, y))
+				
+				###判斷手勢
 				if finger_points:
 					finger_angle = hand_angle(finger_points)  # 計算手指角度，回傳長度為 5 的串列
 					text = hand_pos(finger_angle)  # 取得手勢所回傳的內容
+					
 					# 小於 50 表示手指伸直，大於等於 50 表示手指捲縮 ,finger_angle[0]大拇指角度,finger_angle[1]食指角度,finger_angle[2]中指角度,finger_angle[3]無名指角度,finger_angle[4]小拇指角度
-					if text == '1':  # 當食指伸直後進行畫圖
+					if text == '1':  # 當主手食指伸直後進行畫圖
 						fx = int(finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
 						fy = int(finger_points[8][1])
 						dots.append([fx, fy])  # 記錄食指座標
@@ -165,57 +168,67 @@ def PointPprocessing(hands_Pose, hands_LR):  # 分別處理左右手座標之副
 
 						if dl > 1:
 							dx1 = dots[dl - 2][0]
-							dy1 = dots[dl - 2][1]
+							dy1 = dots[dl - 2][1] #上一刻的食指xy座標
 							dx2 = dots[dl - 1][0]
-							dy2 = dots[dl - 1][1]
-							cv2.line(newblack, (dx1, dy1), (dx2, dy2), color, 5)  # 在黑色畫布上畫圖
+							dy2 = dots[dl - 1][1] #這一刻的食指xy座標
+							cv2.line(newblack, (dx1, dy1), (dx2, dy2), color, 5)  # 取兩個時間差的點畫線，在黑色畫布上
 							#print(dots)
-						if dl >=100:
+						if dl >=100: ###當dots累積超過50組座標，將上上一刻與上衣刻的座標記錄起來，並刷新整組座標紀錄
 							dots = [(dots[dl - 2]), (dots[dl - 1])]
 							#print(dots)
-					else:
+					else: #若主手不伸出食指，則清除座標紀錄
 						dots.clear()
-		else:  # 副手運算
-
+		else:  # 讀取到副手
+			
+			###準備功能視窗
 			mainu = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
-			mainu = cv2.resize(mainu, (int(frame.shape[1] / 5), frame.shape[0]), interpolation=cv2.INTER_AREA)
+			mainu = cv2.resize(mainu, (int(frame.shape[1] / 5), frame.shape[0]), interpolation=cv2.INTER_AREA) #依照讀取到的畫面調整功能版大小
 			smailblack2 = ScalingDisplacement(mainu, lost_pix, offset)  # 縮小畫布
 			cv2.rectangle(mainu, (10, 10), (40, 40), (0, 0, 255, 255), -1)  # 在畫面上方放入紅色正方形
 			cv2.rectangle(mainu, (45, 10), (75, 40), (0, 255, 0, 255), -1)  # 在畫面上方放入綠色正方形
 			cv2.rectangle(mainu, (80, 10), (110, 40), (255, 0, 0, 255), -1)  # 在畫面上方放入藍色正方形
 			####################################################################################################################
 			frame = cv2.circle(frame, Pose1, 10, Hand_Mark_blue, -1)
-			Pose3 = [int(Pose.landmark[8].x * frame.shape[1]), int(Pose.landmark[8].y * frame.shape[0])]  # 副手食指 給鼠標用
+			Left_Finger1_Pos = [int(Pose.landmark[8].x * frame.shape[1]), int(Pose.landmark[8].y * frame.shape[0])]  # 副手食指 給鼠標用
 			forefinger0 = [int(Pose.landmark[8].x * frame.shape[1]), int(Pose.landmark[8].y * frame.shape[0])]  # 食指頂端座標
-			# 將 21 個節點換算成座標，記錄到 finger_points
+			
+			### 將 21 個節點換算成座標，記錄到 finger_points
 			for i in Pose.landmark:
 				x = i.x * frame.shape[1]
 				y = i.y * frame.shape[0]
 				finger_points.append((x, y))
+			
+			###判斷手勢
 			if finger_points:
 				finger_angle = hand_angle(finger_points)  # 計算手指角度，回傳長度為 5 的串列
 				text = hand_pos(finger_angle)  # 取得手勢所回傳的內容
-				if text == '2':
+				
+				"""
+				1. 伸出"副手食中指"，則停止作畫功能 -> 進入功能選擇階段 -> 直到"副手全張開" 則關閉功能選擇階段， 可以繼續作畫
+				"""
+				#若副手伸出食中指
+				if text == '2': 
 					# print(take)
-					take = False
-					mainu = cv2.circle(mainu, Pose1, 10, (255, 255, 255), -1)
-					cv2.imshow("mainu", mainu)
+					take = False  #停止主手迴圈，進入副手迴圈
+					mainu = cv2.circle(mainu, Pose1, 10, (255, 255, 255), -1) #製作副手鼠標
+					cv2.imshow("mainu", mainu) #顯示副手鼠標
+					
+					#紀錄副手食指座標
 					fx = int(finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
 					fy = int(finger_points[8][1])
 					# print(fx,fy)
 
+					#若副手食指座標移動到以下位置，則切換顏色
 					if fy >= 10 and fy <= 40 and fx >= 10 and fx <= 40:
-						color = (0, 0, 255, 255)
+						color = (0, 0, 255, 255) # 如果食指末端碰到，顏色改成藍色
 					elif fy >= 10 and fy <= 40 and fx >= 45 and fx <= 75:
-						color = (0, 255, 0, 255)
+						color = (0, 255, 0, 255) # 如果食指末端碰到藍色，顏色改成藍色
 					elif fy >= 10 and fy <= 40 and fx >= 80 and fx <= 110:
 						color = (255, 0, 0, 255)  # 如果食指末端碰到藍色，顏色改成藍色
-
+				#副手全張
 				elif text == '5' and take==False:
 					cv2.destroyWindow("mainu")
 					take = True
-
-
 
 	return Pose2
 
@@ -245,7 +258,7 @@ if __name__ == '__main__':
 			newblack = cv2.resize(newblack, CanvasSize, interpolation=cv2.INTER_AREA)
 			f_round = False
 
-		frame = cv2.flip(frame, 1)  # 畫面左右翻轉
+		frame = cv2.flip(frame, 1)  # 畫面左右翻轉，放回畫面frame
 		# print(frame.shape)
 		imgRGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # 將影像通道從BGR轉成RGB
 		smailblack1 = ScalingDisplacement(newblack, lost_pix, offset)  # 縮小畫布
