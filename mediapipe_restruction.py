@@ -16,7 +16,12 @@ color = (0,0,255)
 lost_pix = 0.8 	#縮小比例0~1之間
 offset = [0,0]	#偏移(x為正往右偏移，y為正往下偏移)
 dots=[]
-Mode = True #True為作畫模式/ False 為功能板模式
+Mode = 'Draw' #'Draw'為作畫模式/ 'Func' 為功能板模式
+
+Hand_Mark_blue = (255, 0, 0)  # 顏色藍色
+Hand_Mark_red = (0, 0, 255)  # 顏色紅色
+
+Main_hand = "Right"  # 設定主手 Left/Right
 
 # mpDraw = mp.solutions.drawing_utils
 # handLmsStyle = mpDraw.DrawingSpec(color=(0,255,0),thickness = 5 )	#設定點的參數
@@ -136,118 +141,120 @@ def ScalingDisplacement(newblack, lost_pix, offset):  # 畫布的縮放位移
 		1. 作畫模式：主手食指判讀與否
 		2. 功能版模式：切換功能 直到 副手為"5"，切換回作畫模式              
 """
-def PointPprocessing(hands_Pose, hands_LR, menu):  # 分別處理左右手座標之副程式	(左手要做什麼，右手要做什麼 分別計算)
-	global frame, color, dots, Mode
-	Main_hand = "Right"  # 設定主手 Left/Right
-	finger_points = []  # 記錄手指節點座標的串列
-	Hand_Mark_blue = (255, 0, 0)  # 顏色藍色
-	Hand_Mark_red = (0, 0, 255)  # 顏色紅色
+def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand):  # 分別處理左右手座標之副程式	(左手要做什麼，右手要做什麼 分別計算)
+	global frame, color
+
+	#若手不再畫面內，重設參數(??)
+	main_finger_points = [] # 記錄主手指節點座標的串列
+	sub_finger_points =[]
 	main_mouse_pos = [-10, -10]  # 主手鼠標座標
 	sub_mouse_pos = [-10, -10] #副手鼠標座標
+	main_hand_text = ""
+	sub_hand_text = ""
+	main_Pose = {}
+	sub_Pose ={}
+	main_Pose1 =[]
+	sub_Pose1 =[]
 
-	#讀取雙手序列
+	#當讀取到雙手序列
 	for i in range(len(hands_LR)): 
-		Pose = (hands_Pose[hands_LR.index(hands_LR[i])]) #當前抓取到的手的全部座標
-		print("Pose:", Pose)
-		Pose1 = [int(Pose.landmark[8].x * frame.shape[1]), int(Pose.landmark[8].y * frame.shape[0])] #當前抓取到的手的食指座標
-		print("Pose1:", Pose1)
-		###################################雙手處理###############################################
-		
 		# 讀取到主手
-		if hands_LR[i] == Main_hand:  
-			#顯示主手藍色鼠標於監視器上
-			main_mouse_pos = [int(Pose.landmark[8].x * frame.shape[1]),
-			 		 int(Pose.landmark[8].y * frame.shape[0])]  # 主手食指 給鼠標用
-			frame = cv2.circle(frame, Pose1, 10, Hand_Mark_blue, -1) #鼠標藍色 顯示於 監視器上
+		if hands_LR[i] == Main_hand:
+			main_Pose = (hands_Pose[hands_LR.index(hands_LR[i])]) #當前抓取到的手的全部座標
+			main_Pose1 = [int(main_Pose.landmark[8].x * frame.shape[1]), int(main_Pose.landmark[8].y * frame.shape[0])] #當前抓取到的手的食指座標
+            #顯示主手藍色鼠標於監視器上
+			main_mouse_pos = [int(main_Pose.landmark[8].x * frame.shape[1]),
+                              int(main_Pose.landmark[8].y * frame.shape[0])]  # 主手食指 給鼠標用
+			frame = cv2.circle(frame, main_Pose1, 10, Hand_Mark_blue, -1) #鼠標藍色 顯示於 監視器上
 			
 			### 將主手 21 個節點換算成座標，記錄到 finger_points
-			for i in Pose.landmark:
+			for i in main_Pose.landmark:
 				x = i.x * frame.shape[1]
 				y = i.y * frame.shape[0]
-				finger_points.append((x, y))
-			finger_angle = hand_angle(finger_points)  # 計算手指角度，回傳長度為 5 的串列
+				main_finger_points.append((x, y))
+			main_finger_angle = hand_angle(main_finger_points)  # 計算手指角度，回傳長度為 5 的串列
 			#判斷手勢
-			main_hand_text = Hand_Text(finger_angle)  # 取得手勢所回傳的內容
-
-			#可做畫模式
-			if Mode == True:
-				# 當主手食指伸直後進行畫圖
-				if main_hand_text == '1':  
-					#轉為"紅色鼠標"於監視器上
-					frame = cv2.circle(frame, Pose1, 10, Hand_Mark_red, -1) #鼠標藍色 顯示於 監視器上
-					
-					fx = int(finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
-					fy = int(finger_points[8][1])
-					dots.append([fx, fy])  # 記錄食指座標
-					# print(dots)
-					dl = len(dots)
-
-					if dl > 1:
-						dx1 = dots[dl - 2][0]
-						dy1 = dots[dl - 2][1] #上一刻的食指xy座標
-						dx2 = dots[dl - 1][0]
-						dy2 = dots[dl - 1][1] #這一刻的食指xy座標
-						cv2.line(newblack, (dx1, dy1), (dx2, dy2), color, 5)  # 取兩個時間差的點畫線，在黑色畫布上
-						#print(dots)
-					if dl >=100: ###當dots累積超過50組座標，將上上一刻與上衣刻的座標記錄起來，並刷新整組座標紀錄
-						dots = [(dots[dl - 2]), (dots[dl - 1])]
-						#print(dots)
-				
-				#若主手不伸出食指作畫，則清除主手座標紀錄
-				else: 
-					dots.clear()
-			# Mode == False, 作畫模式關閉
-			else:
-				pass
-		else:  # 讀取到副手
+			main_hand_text = Hand_Text(main_finger_angle)  # 取得手勢所回傳的內容
 			
-			#副手鼠標顯示
-			sub_mouse_pos = [int(Pose.landmark[8].x * frame.shape[1]),
-			 		 int(Pose.landmark[8].y * frame.shape[0])]  # 副手食指位置給鼠標用
+			# return main_hand_text, main_finger_points, main_Pose, main_Pose1
+		else:  # 讀取到副手
+			sub_Pose = (hands_Pose[hands_LR.index(hands_LR[i])]) #當前抓取到的手的全部座標
+			sub_Pose1 = [int(sub_Pose.landmark[8].x * frame.shape[1]), int(sub_Pose.landmark[8].y * frame.shape[0])] #當前抓取到的手的食指座標
+			#副手鼠標顯示在監視器上
+			sub_mouse_pos = [int(sub_Pose.landmark[8].x * frame.shape[1]),
+			 		 int(sub_Pose.landmark[8].y * frame.shape[0])]  # 副手食指位置給鼠標用
 			frame = cv2.circle(frame, sub_mouse_pos, 10, Hand_Mark_blue, -1) #鼠標藍色 顯示於 監視器上
 
 			### 將 21 個節點換算成座標，記錄到 finger_points
-			for i in Pose.landmark:
+			for i in sub_Pose.landmark:
 				x = i.x * frame.shape[1]
 				y = i.y * frame.shape[0]
-				finger_points.append((x, y))
+				sub_finger_points.append((x, y))
 			
 			###判斷手勢
-			finger_angle = hand_angle(finger_points)  # 計算手指角度，回傳長度為 5 的串列
-			sub_hand_text = Hand_Text(finger_angle)  # 取得手勢所回傳的內容
-			
-			"""
-			1. 伸出"副手食中指"，則停止作畫功能 -> 進入功能選擇階段 -> 直到"副手全張開" 則關閉功能選擇階段， 可以繼續作畫
-			"""
-			#若副手伸出食中指
-			if sub_hand_text == '2': 
-				# print(Mode)
-				Mode = False  #停止主手迴圈，進入副手迴圈
-				menu = cv2.circle(menu, Pose1, 10, (255, 255, 255), -1) #製作副手鼠標 並繪製於功能版上
-				cv2.imshow("menu", menu) #顯示副手鼠標+功能版
-				
-				#紀錄副手食指座標
-				fx = int(finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
-				fy = int(finger_points[8][1])
-				# print(fx,fy)
-
-				#若副手食指座標移動到以下位置，則切換顏色
-				if fy >= 10 and fy <= 40 and fx >= 10 and fx <= 40:
-					color = (0, 0, 255, 255) # 如果食指末端碰到，顏色改成藍色
-				elif fy >= 10 and fy <= 40 and fx >= 45 and fx <= 75:
-					color = (0, 255, 0, 255) # 如果食指末端碰到藍色，顏色改成藍色
-				elif fy >= 10 and fy <= 40 and fx >= 80 and fx <= 110:
-					color = (255, 0, 0, 255)  # 如果食指末端碰到藍色，顏色改成藍色
-			#副手全張
-			elif sub_hand_text == '5' and Mode==False:
-				cv2.destroyWindow("menu")
-				Mode = True
-
+			sub_finger_angle = hand_angle(sub_finger_points)  # 計算手指角度，回傳長度為 5 的串列
+			sub_hand_text = Hand_Text(sub_finger_angle)  # 取得手勢所回傳的內容
+			# return sub_hand_text, sub_finger_points, sub_Pose, sub_Pose1, Mode
+		Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points,main_Pose, sub_Pose,main_Pose1, sub_Pose1, menu, frame)
+	
 	return main_mouse_pos, sub_mouse_pos
 
-def Function_Select(mode, main_hand_text, sub_hand_text, voice_text):
-	#return   
-	pass
+def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points,main_Pose, sub_Pose, main_Pose1, sub_Pose1, menu, frame):
+	#主手執行作畫
+	global dots, color, Mode
+	if Mode == 'Draw'  and main_hand_text == '1':
+		#轉為"紅色鼠標"於監視器上
+		frame = cv2.circle(frame, main_Pose1, 10, Hand_Mark_red, -1) #鼠標藍色 顯示於 監視器上
+		fx = int(main_finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
+		fy = int(main_finger_points[8][1])
+		dots.append([fx, fy])  # 記錄食指座標
+		# print(dots)
+		dl = len(dots)
+		if dl > 1:
+			dx1 = dots[dl - 2][0]
+			dy1 = dots[dl - 2][1] #上一刻的食指xy座標
+			dx2 = dots[dl - 1][0]
+			dy2 = dots[dl - 1][1] #這一刻的食指xy座標
+			cv2.line(newblack, (dx1, dy1), (dx2, dy2), color, 5)  # 取兩個時間差的點畫線，在黑色畫布上
+			#print(dots)
+		if dl >=100: ###當dots累積超過50組座標，將上上一刻與上衣刻的座標記錄起來，並刷新整組座標紀錄
+			dots = [(dots[dl - 2]), (dots[dl - 1])]
+			#print(dots)
+	
+	# 若副手伸出食中指 : 1. 伸出"副手食中指"，則停止作畫功能 -> 進入功能選擇階段 -> 直到"副手全張開" 則關閉功能選擇階段， 可以繼續作畫
+	elif sub_hand_text == '2':
+		Mode = 'Func'  #停止主手迴圈，進入副手迴圈
+		
+		menu = cv2.circle(menu, sub_Pose1, 10, (255, 255, 255), -1) #製作副手鼠標 並繪製於功能版上
+		cv2.imshow("menu", menu) #顯示副手鼠標+功能版
+		
+		#紀錄副手食指座標
+		fx = int(sub_finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
+		fy = int(sub_finger_points[8][1])
+		# print(fx,fy)
+
+		#若副手食指座標移動到以下位置，則切換顏色
+		if fy >= 10 and fy <= 40 and fx >= 10 and fx <= 40:
+			color = (0, 0, 255, 255) # 如果食指末端碰到，顏色改成藍色
+		elif fy >= 10 and fy <= 40 and fx >= 45 and fx <= 75:
+			color = (0, 255, 0, 255) # 如果食指末端碰到藍色，顏色改成藍色
+		elif fy >= 10 and fy <= 40 and fx >= 80 and fx <= 110:
+			color = (255, 0, 0, 255)  # 如果食指末端碰到藍色，顏色改成藍色
+		
+	#副手全張：關閉功能版，轉回繪畫模式
+	elif sub_hand_text == '5' and Mode== 'Func': 
+		Mode = 'Draw'
+		cv2.destroyWindow("menu")
+		
+
+	#若主手不伸出食指作畫，則清除主手座標紀錄
+	else: 
+		dots.clear()
+		
+	# print("subtext", sub_hand_text)
+	# print("Mode:", Mode)
+	
+	return  Mode
 
 
 
@@ -292,7 +299,8 @@ if __name__ == '__main__':
 		smailblack1 = ScalingDisplacement(newblack, lost_pix, offset)  # 縮小畫布
 		menu = func_window() #初始化功能版
 		hands_Pose1, hands_LR = HandsIdentify(imgRGB)  # 副程式處理"手部座標"、"左右手順序"
-		main_MousePose, sub_MousePose = PointPprocessing(hands_Pose1, hands_LR, menu)  # 分別處理左右手座標之副程式
+		main_MousePose, sub_MousePose = PointPprocessing(hands_Pose1, hands_LR, menu, Main_hand)  # 分別處理左右手座標之副程式
+		# Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points,main_Pose, sub_Pose,main_Pose1, sub_Pose1)
 		TrueCanvas = Mouse(smailblack1, CanvasSize, main_MousePose, sub_MousePose)  # 加入鼠標 回傳最終畫布
 		cTime = time.time()
 		fps = 1 / (cTime - pTime)
