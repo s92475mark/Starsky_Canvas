@@ -239,7 +239,8 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
     elif sub_hand_text == '1' and mod == 1:
         Mode = 'Func'  # 停止主手迴圈，進入副手迴圈
 
-        menu = cv2.circle(menu, sub_Pose1, 10, (255, 255, 255), -1)  # 製作副手鼠標 並繪製於功能版上
+        menu = cv2.circle(menu, (int(sub_Pose1[0] / 2), int(sub_Pose1[1] / 2)), 10, (255, 255, 255),
+                          -1)  # 製作副手鼠標 並繪製於功能版上
         cv2.imshow("menu", menu)  # 顯示副手鼠標+功能版
 
         # 紀錄副手食指座標
@@ -248,20 +249,21 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
         # print(fx,fy)
 
         # 若副手食指座標移動到以下位置，則切換顏色
-        if fy >= 10 and fy <= 40 and fx >= 10 and fx <= 40:
+        if 20 <= fy <= 80 and 20 <= fx <= 80:
             mod = 2
         elif fy >= 10 and fy <= 40 and fx >= 45 and fx <= 75:
             mod = 2
         elif fy >= 10 and fy <= 40 and fx >= 80 and fx <= 110:
             color = (255, 0, 0, 255)  # 如果食指末端碰到藍色，顏色改成藍色
-
+        else:
+            dots.clear()
     # 副手全張：關閉功能版，轉回繪畫模式
     elif sub_hand_text == '5' and Mode == 'Func' and mod == 1:
         Mode = 'Draw'
         cv2.destroyWindow("menu")
 
 
-    elif mod == 2:
+    if mod == 2:
         if sub_hand_text == '1' and 70 <= int(sub_Pose1[0]) <= 580 and 70 <= int(sub_Pose1[1]) <= 120:
             colorx = int((sub_Pose1[0] - 70) / 2)
         elif sub_hand_text == '1' and 70 <= int(sub_Pose1[0]) <= 580 and 150 <= int(sub_Pose1[1]) <= 200:
@@ -272,7 +274,11 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
             color = (colorx, colory, colorz)
             cv2.destroyWindow("menu")
             mod = 1
-        colormain = cv2.circle(colormain, (sub_Pose1[0], sub_Pose1[1]), 10, (255, 255, 255), -1)
+        else:
+            dots.clear()
+        if sub_Pose1:
+            colormain = cv2.circle(colormain, (sub_Pose1[0],sub_Pose1[1]), 10, (255, 255, 255), -1)
+        #print(sub_Pose1)
         cv2.putText(colormain, str(int(colorx)), (600, 95), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
         cv2.putText(colormain, str(int(colory)), (600, 175), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
         cv2.putText(colormain, str(int(colorz)), (600, 255), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
@@ -281,9 +287,7 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
         cv2.imshow("menu", colormain)
 
     # 若主手不伸出食指作畫，則清除主手座標紀錄
-    else:
-        dots.clear()
-    #print(mod)
+    # print(mod)
     return Mode
 
 
@@ -332,13 +336,17 @@ if __name__ == '__main__':
             print("沒有畫面")
             break
         CanvasSize = (frame.shape[1], frame.shape[0])  # 畫布大小
+        blur = cv2.GaussianBlur(frame, (7, 7), cv2.BORDER_DEFAULT)
+        #blur = cv2.Canny(blur, 125, 175)
+        blur = cv2.dilate(blur, (7, 7), iterations=1)
         if f_round:  # 判斷是不是第一次跑，是:把黑色畫布放大成跟鏡頭解析度一樣大
             newblack = cv2.resize(newblack, CanvasSize, interpolation=cv2.INTER_AREA)
             f_round = False
 
         frame = cv2.flip(frame, 1)  # 畫面左右翻轉，放回畫面frame
+        blur = cv2.flip(blur, 1)
         # print(frame.shape)
-        imgRGB = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # 將影像通道從BGR轉成RGB
+        imgRGB = cv2.cvtColor(blur, cv2.COLOR_BGR2RGB)  # 將影像通道從BGR轉成RGB
         smailblack1 = ScalingDisplacement(newblack, lost_pix, offset)  # 縮小畫布
         menu = func_window()  # 初始化功能版
         colormain = func_color()
@@ -354,6 +362,7 @@ if __name__ == '__main__':
         cv2.putText(frame, str(int(fps)), (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
         # print("newblack",newblack.shape)
         cv2.imshow("live", frame)
+        cv2.imshow("liv", blur)
         cv2.imshow("TrueCanvas", TrueCanvas)
         # time.sleep(0.5)	#跑影片要記得設time.sleep，跑視訊鏡頭要記得關  我花了40分鐘在debug為甚麼我的fps不到1
         if cv2.waitKey(1) == ord('q'):
