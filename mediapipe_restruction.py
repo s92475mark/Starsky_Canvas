@@ -7,7 +7,7 @@ import math
 newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 mpHand = mp.solutions.hands  # 抓手	001
 hands = mpHand.Hands()  # 001
-path = 1  # 本地端可以改成這個，用筆電的視訊鏡頭
+path = 0  # 本地端可以改成這個，用筆電的視訊鏡頭
 cap = cv2.VideoCapture(path)  # 攝影機變數
 pTime = 0  # 起始時間
 f_round = True  # 第一次跑
@@ -288,6 +288,24 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 
     # 若主手不伸出食指作畫，則清除主手座標紀錄
     # print(mod)
+    
+
+    if Mode == 'Draw' and main_hand_text == '5' and sub_hand_text == '5':
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        shadow = cv2.imread('black.jpg')
+        if not cap.isOpened():
+            print("YA! 畫面切掉了!!")
+            exit()
+    
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                print("Cannot receive frame")
+                break
+        output =cv2.addWeighted(frame, shadow)
+        cv2.imshow('Shadow', output)
+            
+
     return Mode
 
 
@@ -353,6 +371,7 @@ if __name__ == '__main__':
         hands_Pose1, hands_LR = HandsIdentify(imgRGB)  # 副程式處理"手部座標"、"左右手順序"
         main_MousePose, sub_MousePose = PointPprocessing(hands_Pose1, hands_LR, menu, Main_hand,
                                                          colormain)  # 分別處理左右手座標之副程式
+
         # Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points,main_Pose, sub_Pose,main_Pose1, sub_Pose1)
         TrueCanvas = Mouse(smailblack1, CanvasSize, main_MousePose, sub_MousePose)  # 加入鼠標 回傳最終畫布
         cTime = time.time()
