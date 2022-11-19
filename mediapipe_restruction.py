@@ -7,7 +7,7 @@ import math
 newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 mpHand = mp.solutions.hands  # 抓手	001
 hands = mpHand.Hands()  # 001
-path = 0  # 本地端可以改成這個，用筆電的視訊鏡頭
+path = 1  # 本地端可以改成這個，用筆電的視訊鏡頭
 cap = cv2.VideoCapture(path)  # 攝影機變數
 pTime = 0  # 起始時間
 f_round = True  # 第一次跑
@@ -238,30 +238,33 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
     # 若副手伸出食中指 : 1. 伸出"副手食中指"，則停止作畫功能 -> 進入功能選擇階段 -> 直到"副手全張開" 則關閉功能選擇階段， 可以繼續作畫
     elif sub_hand_text == '1' and mod == 1:
         Mode = 'Func'  # 停止主手迴圈，進入副手迴圈
-
-        menu = cv2.circle(menu, (int(sub_Pose1[0] / 2), int(sub_Pose1[1] / 2)), 10, (255, 255, 255),
+        menu = cv2.circle(menu, (int(sub_Pose1[0]/2.5), int(sub_Pose1[1]*1.3)), 10, (255, 255, 255),
                           -1)  # 製作副手鼠標 並繪製於功能版上
         cv2.imshow("menu", menu)  # 顯示副手鼠標+功能版
 
         # 紀錄副手食指座標
-        fx = int(sub_finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
-        fy = int(sub_finger_points[8][1])
+        fx = int(sub_finger_points[8][0]/2.5)  # 如果手勢為 1，記錄食指末端的座標
+        fy = int(sub_finger_points[8][1]*1.3)
         # print(fx,fy)
 
-        # 若副手食指座標移動到以下位置，則切換顏色
-        if 20 <= fy <= 80 and 20 <= fx <= 80:
+        # 若副手食指座標移動到以下位置，則切換功能
+        if 10 <= fy <= 40 and 10 <= fx <= 40:
             mod = 2
-        elif fy >= 10 and fy <= 40 and fx >= 45 and fx <= 75:
+        elif 70 <= fy <= 100 and 10 <= fx <= 40:
             mod = 2
-        elif fy >= 10 and fy <= 40 and fx >= 80 and fx <= 110:
-            color = (255, 0, 0, 255)  # 如果食指末端碰到藍色，顏色改成藍色
+        elif 130 <= fy <= 160 and 10 <= fx <= 40:
+            mod = 2
+        elif 190 <= fy <= 220 and 10 <= fx <= 40:
+            mod=2
+        elif 250 <= fy <= 280 and 10 <= fx <= 40:
+            mod=2
         else:
             dots.clear()
+        #print(mod)
     # 副手全張：關閉功能版，轉回繪畫模式
     elif sub_hand_text == '5' and Mode == 'Func' and mod == 1:
         Mode = 'Draw'
         cv2.destroyWindow("menu")
-
 
     if mod == 2:
         if sub_hand_text == '1' and 70 <= int(sub_Pose1[0]) <= 580 and 70 <= int(sub_Pose1[1]) <= 120:
@@ -277,8 +280,8 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
         else:
             dots.clear()
         if sub_Pose1:
-            colormain = cv2.circle(colormain, (sub_Pose1[0],sub_Pose1[1]), 10, (255, 255, 255), -1)
-        #print(sub_Pose1)
+            colormain = cv2.circle(colormain, (sub_Pose1[0], sub_Pose1[1]), 10, (255, 255, 255), -1)
+        # print(sub_Pose1)
         cv2.putText(colormain, str(int(colorx)), (600, 95), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
         cv2.putText(colormain, str(int(colory)), (600, 175), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
         cv2.putText(colormain, str(int(colorz)), (600, 255), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
@@ -288,7 +291,6 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 
     # 若主手不伸出食指作畫，則清除主手座標紀錄
     # print(mod)
-    
 
     if Mode == 'Draw' and main_hand_text == '5' and sub_hand_text == '5':
         cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -296,15 +298,14 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
         if not cap.isOpened():
             print("YA! 畫面切掉了!!")
             exit()
-    
+
         while True:
             ret, frame = cap.read()
             if not ret:
                 print("Cannot receive frame")
                 break
-        output =cv2.addWeighted(frame, shadow)
+        output = cv2.addWeighted(frame, shadow)
         cv2.imshow('Shadow', output)
-            
 
     return Mode
 
@@ -317,10 +318,16 @@ def func_window():  ###準備功能視窗 -> menu
     menu = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
     menu = cv2.resize(menu, (int(frame.shape[1] / 5), frame.shape[0]), interpolation=cv2.INTER_AREA)  # 依照讀取到的畫面調整功能版大小
     # smailblack2 = ScalingDisplacement(menu, lost_pix, offset)  # 縮小畫布
-    cv2.rectangle(menu, (10, 10), (40, 40), (0, 0, 255, 255), -1)  # 在畫面上方放入紅色正方形
-    cv2.rectangle(menu, (45, 10), (75, 40), (0, 255, 0, 255), -1)  # 在畫面上方放入綠色正方形
-    cv2.rectangle(menu, (80, 10), (110, 40), (255, 0, 0, 255), -1)  # 在畫面上方放入藍色正方形
-
+    cv2.rectangle(menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+    cv2.putText(menu, 'color', (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+    cv2.rectangle(menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+    cv2.putText(menu, 'zoom', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+    cv2.rectangle(menu, (10, 130), (40, 160), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+    cv2.putText(menu, 'else', (50, 145), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+    cv2.rectangle(menu, (10, 190), (40, 220), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+    cv2.putText(menu, 'else', (50, 205), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+    cv2.rectangle(menu, (10, 250), (40, 280), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+    cv2.putText(menu, 'else', (50, 265), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
     return menu
 
 
@@ -355,7 +362,7 @@ if __name__ == '__main__':
             break
         CanvasSize = (frame.shape[1], frame.shape[0])  # 畫布大小
         blur = cv2.GaussianBlur(frame, (7, 7), cv2.BORDER_DEFAULT)
-        #blur = cv2.Canny(blur, 125, 175)
+        # blur = cv2.Canny(blur, 125, 175)
         blur = cv2.dilate(blur, (7, 7), iterations=1)
         if f_round:  # 判斷是不是第一次跑，是:把黑色畫布放大成跟鏡頭解析度一樣大
             newblack = cv2.resize(newblack, CanvasSize, interpolation=cv2.INTER_AREA)
