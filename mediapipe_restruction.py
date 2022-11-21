@@ -256,9 +256,9 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
     # 若副手伸出食中指 : 1. 伸出"副手食中指"，則停止作畫功能 -> 進入功能選擇階段 -> 直到"副手全張開" 則關閉功能選擇階段， 可以繼續作畫
     elif sub_hand_text == '1' and mod == 1 and Mode != 'zoon_move':
         Mode = 'Func'  # 停止主手迴圈，進入副手迴圈
-        fx = int(sub_finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
+        fx = int(sub_finger_points[8][0]/2)  # 如果手勢為 1，記錄食指末端的座標
         fy = int(sub_finger_points[8][1])
-        menu = cv2.circle(menu, (int(sub_Pose1[0]), int(sub_Pose1[1])), 10, (255, 255, 255), -1)  # 製作副手鼠標 並繪製於功能版上
+        menu = cv2.circle(menu, (int(sub_Pose1[0]/2), int(sub_Pose1[1])), 10, (255, 255, 255), -1)  # 製作副手鼠標 並繪製於功能版上
         cv2.imshow("menu", menu)  # 顯示副手鼠標+功能版
         # 若副手食指座標移動到以下位置，則切換顏色
         if 10 <= fy <= 40 and 10 <= fx <= 40:
@@ -274,7 +274,7 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
         else:
             dots.clear()
     elif Mode == 'Func' and sub_Pose1 != [] and sub_hand_text != '5' and mod==1:
-        menu = cv2.circle(menu, (int(sub_Pose1[0]), int(sub_Pose1[1])), 10, (255, 255, 255), -1)  # 製作副手鼠標 並繪製於功能版上
+        menu = cv2.circle(menu, (int(sub_Pose1[0]/2), int(sub_Pose1[1])), 10, (255, 255, 255), -1)  # 製作副手鼠標 並繪製於功能版上
         cv2.imshow("menu", menu)  # 顯示副手鼠標+功能版
 
 
@@ -486,7 +486,7 @@ if __name__ == '__main__':
         cv2.putText(frame, str(int(fps)), (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
         # print("newblack",newblack.shape)
         cv2.imshow("live", frame)
-        # cv2.imshow("liv", blur)
+        cv2.imshow("liv", blur)
         # TrueCanvas = cv2.resize(TrueCanvas, (1920,1920), interpolation=cv2.INTER_AREA)	#resize 指令用於調整畫布大小
         cv2.imshow("TrueCanvas", TrueCanvas)
         # time.sleep(0.5)	#跑影片要記得設time.sleep，跑視訊鏡頭要記得關  我花了40分鐘在debug為甚麼我的fps不到1
