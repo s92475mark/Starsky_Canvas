@@ -248,33 +248,32 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		if dl >= 100:  ###當dots累積超過50組座標，將上上一刻與上衣刻的座標記錄起來，並刷新整組座標紀錄
 			dots = [(dots[dl - 2]), (dots[dl - 1])]
 		# print(dots)
-
 	# 若副手伸出食中指 : 1. 伸出"副手食中指"，則停止作畫功能 -> 進入功能選擇階段 -> 直到"副手全張開" 則關閉功能選擇階段， 可以繼續作畫
 	elif sub_hand_text == '1' and mod == 1 and Mode != 'zoon_move' and Mode != 'Func':
 		Mode = 'Func'  # 停止主手迴圈，進入副手迴圈
-	elif Mode == 'Func' and sub_Pose1 != [] and sub_hand_text != '5':
-		menu = cv2.circle(menu, (int(sub_Pose1[0] / 2), int(sub_Pose1[1] / 2)), 10, (255, 255, 255),-1)  # 製作副手鼠標 並繪製於功能版上
+	elif Mode == 'Func' and sub_Pose1 != [] and sub_hand_text != '5' and mod != 2:
+		menu = cv2.circle(menu, (int(sub_Pose1[0]), int(sub_Pose1[1])), 10, (255, 255, 255),-1)  # 製作副手鼠標 並繪製於功能版上
 		cv2.imshow("menu", menu)  # 顯示副手鼠標+功能版
 
 		# 紀錄副手食指座標
 		fx = int(sub_finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
 		fy = int(sub_finger_points[8][1])
-		# print(fx,fy)
+		print(fx,fy)
 
 		# 若副手食指座標移動到以下位置，則切換顏色
-		if 20 <= fy <= 80 and 20 <= fx <= 80:
+		if 10 <= fy <= 40 and 10 <= fx <= 40:
 			mod = 2
-		elif fy >= 10 and fy <= 40 and fx >= 45 and fx <= 75:
-			mod = 2
-		elif fy >= 10 and fy <= 40 and fx >= 80 and fx <= 110:
-			color = (255, 0, 0)  # 如果食指末端碰到藍色，顏色改成藍色
-			# (10, 45), (40, 75)
-		elif 80<= fy <= 160 and 10 <= fx <= 75 :	# 如果食指移到功能版下方
+		elif 70 <= fy <= 100 and 10 <= fx <= 40:
 			Mode = 'zoon_move'
-			# print("sajdf;d")
+		elif 130 <= fy <= 160 and 10 <= fx <= 40:
+			mod = 13
+		elif 190 <= fy <= 220 and 10 <= fx <= 40:
+			mod=13
+		elif 250 <= fy <= 280 and 10 <= fx <= 40:
+			mod=13
 		else:
 			dots.clear()
-		# print(fx,fy)
+			# print("sajdf;d")
 	elif Mode == 'zoon_move':
 		fingertip = []	#縮放用-尖座標
 		fingertip_R = 0
@@ -345,13 +344,13 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 
 	# 副手全張：關閉功能版，轉回繪畫模式
 	elif sub_hand_text == '5' and Mode == 'Func' and mod == 1:
-		Mode = 'draw'
+		Mode = 'Draw'
 		try:
 			cv2.destroyWindow("menu")
 		except:
 			pass
 
-	if mod == 2:
+	if mod == 2 and Mode != 'zoon_move':
 		if sub_hand_text == '1' and 70 <= int(sub_Pose1[0]) <= 580 and 70 <= int(sub_Pose1[1]) <= 120:
 			colorx = int((sub_Pose1[0] - 70) / 2)
 		elif sub_hand_text == '1' and 70 <= int(sub_Pose1[0]) <= 580 and 150 <= int(sub_Pose1[1]) <= 200:
@@ -397,8 +396,6 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 	# return Mode
 
 
-# print("subtext", sub_hand_text)
-# print("Mode:", Mode)
 
 
 def func_window():  ###準備功能視窗 -> menu
@@ -408,13 +405,13 @@ def func_window():  ###準備功能視窗 -> menu
 	# print(y)
 	menu = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 	menu = cv2.resize(menu, (int(frame.shape[1] / 5), frame.shape[0]), interpolation=cv2.INTER_AREA)  # 依照讀取到的畫面調整功能版大小
-    # smailblack2 = ScalingDisplacement(menu, lost_pix, offset)  # 縮小畫布
+	# smailblack2 = ScalingDisplacement(menu, lost_pix, offset)  # 縮小畫布
 	# for i in range(len(collor)):
 	# 	cv2.rectangle(menu, (int(y*(i+1) + x * i),30), (int((i+1)*(y+x)), (30+x)), collor[i], -1)  # 在畫面上方放入紅色正方形
 	cv2.rectangle(menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
 	cv2.putText(menu, 'color', (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'zoom', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	cv2.putText(menu, 'zoom', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 130), (40, 160), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
 	cv2.putText(menu, 'else', (50, 145), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 190), (40, 220), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
@@ -425,7 +422,7 @@ def func_window():  ###準備功能視窗 -> menu
 
 
 def func_color():
-	colormain = np.full((int(frame.shape[1] + 120), (frame.shape[0]), 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
+	colormain = np.full(( (frame.shape[0]),int(frame.shape[1] + 120), 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 	# colormain = cv2.resize(colormain, (int(frame.shape[1] + 120), frame.shape[0]), interpolation=cv2.INTER_AREA)
 	cv2.rectangle(colormain, (70, 70), (580, 120), (0, 0, 255, 255), -1)  # 在畫面上方放入紅色正方形
 	cv2.rectangle(colormain, (70, 150), (580, 200), (0, 255, 0, 255), -1)  # 在畫面上方放入綠色正方形
@@ -443,8 +440,6 @@ def HandsIdentify(img):  # 副程式處理"手部座標"、"左右手順序"
 		for i in range(len(results.multi_hand_landmarks)):  # 001 用迴圈一次處理一隻手的座標
 			hands_Pose.append(results.multi_hand_landmarks[i])
 			hands_LR.append(hands_LR1[i].classification[0].label)
-	# print(len(hands_Pose))
-	# print(hands_LR)
 	return hands_Pose, hands_LR
 
 
@@ -483,7 +478,7 @@ if __name__ == '__main__':
 		cv2.putText(frame, str(int(fps)), (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
 		# print("newblack",newblack.shape)
 		cv2.imshow("live", frame)
-		cv2.imshow("liv", blur)
+		# cv2.imshow("liv", blur)
 		# TrueCanvas = cv2.resize(TrueCanvas, (1920,1920), interpolation=cv2.INTER_AREA)	#resize 指令用於調整畫布大小
 		cv2.imshow("TrueCanvas", TrueCanvas)
 		# time.sleep(0.5)	#跑影片要記得設time.sleep，跑視訊鏡頭要記得關  我花了40分鐘在debug為甚麼我的fps不到1
