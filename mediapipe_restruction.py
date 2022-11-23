@@ -4,6 +4,18 @@ import mediapipe as mp
 import numpy as np
 import math
 
+#語音套件
+import librosa
+from keras.models import load_model
+from keras.utils import to_categorical
+import playsound #play wav用  pip install playsound
+import os
+import threading
+import wave
+import pyaudio
+max_pad_len = 120
+voice_on = "on" # on/off
+
 # 值， 址id
 newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 mpHand = mp.solutions.hands  # 抓手	001
@@ -488,8 +500,140 @@ def HandsIdentify(img):  # 副程式處理"手部座標"、"左右手順序"
             hands_LR.append(hands_LR1[i].classification[0].label)
     return hands_Pose, hands_LR
 
+def wav2mfcc(file_path, max_pad_len=max_pad_len): #音頻預處理
+    wave, sr = librosa.load(file_path, mono=True, sr=None)
+    # print(wave.shape) #(112014,)
+    wave = wave[::3] 
+    # print("wave[::3].shape:",wave.shape) #(37338,) (除3 ??)
+    mfcc = librosa.feature.mfcc(wave, sr=16000) #SR 採樣頻率
+    # print("mfcc.shape in wav2mfcc before padding:",mfcc.shape) #(20 ,73)
+    pad_width = max_pad_len - mfcc.shape[1] #11 -73
+    # pad_width =  mfcc.shape[1] - max_pad_len  #差距73-11 = 62
+    if pad_width <0:
+      mfcc = mfcc[:,0:max_pad_len]
+    #   print("mfcc.shape pad_width>11",mfcc.shape)
+    else:
+      mfcc = np.pad(mfcc, pad_width=((0, 0), (0, pad_width)), mode='constant')
+    # print("mfcc.shape in wav2mfcc after padding:",mfcc.shape) #(20 ,73)
+    return mfcc
+
+#用Pyaudio錄製音頻
+def audio_record(out_file, rec_time):
+    CHUNK = 1024
+    FORMAT = pyaudio.paInt16 #16bit编码格式
+    CHANNELS = 2 #单声道
+    RATE = 16000 #16000采样频率
+    p = pyaudio.PyAudio()
+    # 创建音频流
+    stream = p.open(format=FORMAT, # 音频流wav格式
+                    channels=CHANNELS, # 单声道
+                    rate=RATE, # 采样率16000
+                    input=True,
+                    frames_per_buffer=CHUNK)
+    print("Start Recording...")
+    frames = [] # 录制的音频流
+    # 录制音频数据
+    for i in range(0, int(RATE / CHUNK * rec_time)):
+        data = stream.read(CHUNK)
+        frames.append(data)
+    # 录制完成
+    #print(frames)
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+    
+    # 保存音频文件
+    with wave.open(out_file, 'wb') as wf:
+        wf.setnchannels(CHANNELS)
+        wf.setsampwidth(p.get_sample_size(FORMAT))
+        wf.setframerate(RATE)
+        wf.writeframes(b''.join(frames))
+
+# 把函式放到改寫到類的run方法中，便可以通過呼叫類方法，實現執行緒的終止
+class VoiceStoppableThread(threading.Thread):
+	def __init__(self,daemon=None):
+		super(VoiceStoppableThread,self).__init__(daemon=daemon)
+		self.__is_running = True
+		self.daemon = daemon
+		self.func = ""
+		#讀取語音模型
+		self.model = load_model('./models/best_hier.h5')
+	def terminate(self):
+		self.__is_running = False
+	def run(self):
+		pid = os.getpid() # 當前進程組 ID
+		
+		while self.__is_running:
+			if voice_on == 'on':
+				print("喚醒功能開啟...開始錄音")
+				#語音存檔路徑與檔名
+				audio_call_path = "./record_wav/calling.wav"
+				# 錄製語音指令 ，秒數
+				audio_record(audio_call_path, 2.5) 
+				print("開始喚醒語音識別...")
+				
+				#預測
+				mfcc = wav2mfcc(audio_call_path)  #這裡放上要判讀的語音檔
+				mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
+				# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']") # label 要針對訓練時的label來定
+				# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy', 'hey_julia.npy', 'hey_star.npy']") #vgg16 labels
+				label_list = ['mark_pen.npy', 'eraser.npy', 'call_func.npy', 'hey_julia.npy', 'hey_star.npy', 'others.npy']
+				label_idx = np.argmax(self.model.predict(mfcc_reshaped))
+				# print("predict=", label_list[label_idx]) # 印出最高機率項目
+				# print("prob=", self.model.predict(mfcc_reshaped))			# 印出個項目的機率
+				prob_list = self.model.predict(mfcc_reshaped)
+				# print(prob_list[0])
+				print("predict={} prob={}".format(label_list[label_idx], prob_list[0][label_idx]))
+
+				#喚醒程式
+				voice_pre = str(np.argmax(self.model.predict(mfcc_reshaped)))
+				#當聽到 hey julia時
+				if voice_pre == "hey_julia":
+					#play julia.mp3
+					
+					#進入語音錄製 與 AI 判讀一次， 輸出 功能項目
+					# print("開始功能語音錄音")
+					# audio_func_path = "./record_wav/func.wav"
+					# audio_record(audio_func_path, 2.5)
+					# print("開始功能語音識別")
+					# mfcc = wav2mfcc('./func.wav')
+					# mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
+					# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']")
+					# print("predict=", np.argmax(model.predict(mfcc_reshaped)))
+					# self.func = str(np.argmax(model.predict(mfcc_reshaped)))
+
+					pass
+				# 當聽到hey 星空時
+				elif voice_pre == "hey_star":
+					#playsound.playsound('./meowx2.wav') # meow meow~
+					#進入語音錄製 與 AI 判讀一次， 輸出 功能項目
+					# print("開始功能語音錄音")
+					# audio_func_path = "./record_wav/func.wav"
+					# audio_record(audio_func_path, 2.5)
+					# print("開始功能語音識別")
+					# mfcc = wav2mfcc('./func.wav')
+					# mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
+					# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']")
+					# print("predict=", np.argmax(model.predict(mfcc_reshaped)))
+					# self.func = str(np.argmax(model.predict(mfcc_reshaped)))
+					pass
+				else:
+					pass
+				
+				time.sleep(0.1) #每0.1秒重新跑一次thread
+			elif voice_on == 'off':
+				time.sleep(0.5) #每0.5秒判斷一次是否重新開啟麥克風
 
 if __name__ == '__main__':
+    #執行 語音thread
+    voice_thread = VoiceStoppableThread() #創建一個可終止程序的語音thread
+    voice_thread.daemon = True			  #thread True, 判定開啟
+    voice_thread.start()
+
+    # voice_thread.terminate() #終止thread 用
+    # pid = os.getpid() #可以查process ID
+    # print("start pid:", pid)
+    
     while (True):
         ret, frame = cap.read()
         if not ret:  # 判定有沒有畫面存在
