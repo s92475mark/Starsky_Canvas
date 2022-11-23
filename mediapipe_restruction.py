@@ -8,7 +8,7 @@ import math
 newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 mpHand = mp.solutions.hands  # 抓手	001
 hands = mpHand.Hands()  # 001
-path = 1  # 本地端可以改成這個，用筆電的視訊鏡頭
+path = 0  # 本地端可以改成這個，用筆電的視訊鏡頭
 cap = cv2.VideoCapture(path)  # 攝影機變數
 pTime = 0  # 起始時間
 f_round = True  # 第一次跑
@@ -245,7 +245,7 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,
                     main_Pose1, sub_Pose1, menu, frame, colormain):
     # 主手執行作畫
-    global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard, time_standard, sub_Pose2, main_Pose2,distance
+    global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard, time_standard, sub_Pose2, main_Pose2,distance, newblack
     # print(Mode)
     # print(sub_hand_text,Mode,mod)
     if Mode == 'Draw' and main_hand_text == '1':
@@ -434,21 +434,11 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
         cv2.imshow("menu", colormain)
 
 
-# if Mode == 'Draw' and main_hand_text == '5' and sub_hand_text == '5':
-# 	cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-# 	shadow = cv2.imread('black.jpg')
-# 	if not cap.isOpened():
-# 		print("YA! 畫面切掉了!!")
-# 		exit()
+    elif Mode == 'Draw' and main_hand_text == '5' and sub_hand_text == '5':
+        newblack = np.full((frame.shape[1], frame.shape[0], 3), (0, 0, 0), np.uint8)   
 
-# 	while True:
-# 		ret, frame = cap.read()
-# 		if not ret:
-# 			print("Cannot receive frame")
-# 			break
-# 	output = cv2.addWeighted(frame, shadow)
-# 	cv2.imshow('Shadow', output)
-# return Mode
+
+    return Mode
 # 若主手不伸出食指作畫，則清除主手座標紀錄
 # print(mod)
 # return Mode
