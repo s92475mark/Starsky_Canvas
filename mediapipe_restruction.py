@@ -666,7 +666,7 @@ if __name__ == '__main__':
 	#執行 語音thread
 	voice_thread = VoiceStoppableThread() #創建一個可終止程序的語音thread
 	voice_thread.daemon = True			  #thread True, 判定開啟
-	# voice_thread.start()
+	voice_thread.start()
 
 	# voice_thread.terminate() #終止thread 用
 	# pid = os.getpid() #可以查process ID
