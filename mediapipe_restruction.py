@@ -3,6 +3,7 @@ import time
 import mediapipe as mp
 import numpy as np
 import math
+import csv
 
 #語音套件
 import librosa
@@ -18,7 +19,7 @@ voice_on = "on" # on/off
 
 # 值， 址id
 newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
-mpHand = mp.solutions.hands  # 抓手	001
+mpHand = mp.solutions.hands  # 抓手    001
 hands = mpHand.Hands()  # 001
 path = 0  # 本地端可以改成這個，用筆電的視訊鏡頭
 cap = cv2.VideoCapture(path)  # 攝影機變數
@@ -39,6 +40,7 @@ Main_hand = "Right"  # 設定主手 Left/Right
 sub_Pose2 = []
 main_Pose2 = []
 r_standard = 0  # 縮放用-五指平均半徑
+time_standard_long = 1.5
 middle_standard = [-20, -20]  # 縮放用-中心點判定
 time_standard = 0
 distance = []
@@ -155,7 +157,7 @@ def hand_angle(hand_):  # 計算五隻手指的角度函式
 def ScalingDisplacement(newblack, lost_pix, offset):  # 畫布的縮放位移
     smailblack = newblack.copy()  # 複製
     # smailblack1 = smailblack[int(lost_pix+offset[1]):int(newblack.shape[0]-lost_pix+offset[1]),
-    # int(lost_pix + offset[0]):int(newblack.shape[1]-lost_pix + offset[0])]	#
+    # int(lost_pix + offset[0]):int(newblack.shape[1]-lost_pix + offset[0])]    #
     # print(offset[0],(int(newblack.shape[1] * lost_pix) + offset[0]))
     smailblack1 = smailblack[(offset[1]):(int(newblack.shape[0] * lost_pix) + offset[1]),
                   offset[0]:(int(newblack.shape[1] * lost_pix) + offset[0])]
@@ -179,13 +181,13 @@ def ScalingDisplacement(newblack, lost_pix, offset):  # 畫布的縮放位移
 雙手座標->
 雙手顯示鼠標->
 判斷角度->手勢 -> 
-	"狀態" 切換為作畫模式或功能版模式 -> 
-		1. 作畫模式：主手食指判讀與否
-		2. 功能版模式：切換功能 直到 副手為"5"，切換回作畫模式			  
+    "狀態" 切換為作畫模式或功能版模式 -> 
+        1. 作畫模式：主手食指判讀與否
+        2. 功能版模式：切換功能 直到 副手為"5"，切換回作畫模式              
 """
 
 
-def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分別處理左右手座標之副程式	(左手要做什麼，右手要做什麼 分別計算)
+def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分別處理左右手座標之副程式    (左手要做什麼，右手要做什麼 分別計算)
     global frame, color
 
     # 若手不再畫面內，重設參數(??)
@@ -254,10 +256,9 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
     return main_mouse_pos, sub_mouse_pos
 
 
-def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,
-                    main_Pose1, sub_Pose1, menu, frame, colormain):
+def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,main_Pose1, sub_Pose1, menu, frame, colormain):
     # 主手執行作畫
-    global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard, time_standard, sub_Pose2, main_Pose2,distance, newblack
+    global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard,time_standard_long, time_standard, sub_Pose2, main_Pose2,distance, newblack
     # print(Mode)
     # print(sub_hand_text,Mode,mod)
     if Mode == 'Draw' and main_hand_text == '1':
@@ -317,25 +318,33 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
                 fivefingerpos = Mouse_Pos(sub_finger_points[i])  # 轉換成鼠標層座標
                 a = [int(sub_finger_points[i][0]), int(sub_finger_points[i][1])]
                 fingertip.append(a)
-            middle = int((fingertip[0][0] + fingertip[3][0]) / 2), int(
-                (fingertip[0][1] + fingertip[3][1]) / 2)  # 計算中心點座標
-            Dmiddle = (((middle[0] - middle_standard[0]) ** 2) + (
-                    (middle[1] - middle_standard[1]) ** 2)) ** 0.5  # 座標偏移量
+                if mod != 4:
+                    smailblack1 = cv2.circle(smailblack1, a, 10, (170,0,170), -1)
+            middle = int((fingertip[0][0] + fingertip[3][0]) / 2), int((fingertip[0][1] + fingertip[3][1]) / 2)  # 計算中心點座標
+            Dmiddle = (((middle[0] - middle_standard[0]) ** 2) + ((middle[1] - middle_standard[1]) ** 2)) ** 0.5  # 座標偏移量
             for j in range(len(fingertip)):
                 fingertip_R1 = (((fingertip[j][0] - middle[0]) ** 2 + (fingertip[j][1] - middle[1]) ** 2) ** 0.5)
                 fingertip_R = fingertip_R + fingertip_R1
+            time1 = (int((time.time() - time_standard)/(time_standard_long/5)))
+            if time1 <= 5 and mod != 4:
+                for k in range(time1):
+                    try:
+                        cv2.line(smailblack1, (fingertip[k]), (fingertip[k+1]), color, 5)
+                    except:
+                        cv2.line(smailblack1, (fingertip[4]), (fingertip[0]), color, 5)
             fingertip_R = int(fingertip_R / 5)  # 平均長度
-            cv2.circle(smailblack1, (middle), int(fingertip_R), (0, 255, 0), 1)
-            middle1 = Mouse_Pos(middle)
-            smailblack1 = cv2.circle(smailblack1, (middle1), 10, color, -1)
-            if mod != 4:
+            if mod == 4:
+                cv2.circle(smailblack1, (middle), int(fingertip_R), (0, 255, 0), 1)
+                middle1 = Mouse_Pos(middle)
+                smailblack1 = cv2.circle(smailblack1, (middle1), 10, color, -1)
+            if mod !=  4:
                 if Dmiddle >= 20:  # 如果中心點偏移20pix以上 重置時間與中心點位置
                     middle_standard = [middle[0], middle[1]]
                     time_standard = time.time()
                 if abs(fingertip_R - r_standard) > 6:
                     r_standard = fingertip_R
                     time_standard = time.time()
-                if (time.time() - time_standard) > 1.5:
+                if (time.time() - time_standard) > time_standard_long:
                     mod = 4
             elif mod == 4:
                 cv2.circle(smailblack1, (middle), (int(r_standard + r_standard / 5)), (255, 255, 0), 2)  # 放大縮小的範圍
@@ -465,7 +474,7 @@ def func_window():  ###準備功能視窗 -> menu
     menu = cv2.resize(menu, (int(frame.shape[1] / 4), frame.shape[0]), interpolation=cv2.INTER_AREA)  # 依照讀取到的畫面調整功能版大小
     # smailblack2 = ScalingDisplacement(menu, lost_pix, offset)  # 縮小畫布
     # for i in range(len(collor)):
-    # 	cv2.rectangle(menu, (int(y*(i+1) + x * i),30), (int((i+1)*(y+x)), (30+x)), collor[i], -1)  # 在畫面上方放入紅色正方形
+    #     cv2.rectangle(menu, (int(y*(i+1) + x * i),30), (int((i+1)*(y+x)), (30+x)), collor[i], -1)  # 在畫面上方放入紅色正方形
     cv2.rectangle(menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
     cv2.putText(menu, "color", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
     cv2.rectangle(menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
@@ -499,6 +508,16 @@ def HandsIdentify(img):  # 副程式處理"手部座標"、"左右手順序"
             hands_Pose.append(results.multi_hand_landmarks[i])
             hands_LR.append(hands_LR1[i].classification[0].label)
     return hands_Pose, hands_LR
+
+
+def readconfig(path,lost_pix,Main_hand):
+    with open('./config.csv', mode='r') as inp:
+        reader = csv.reader(inp)
+        dict_from_csv = {rows[0]:rows[1] for rows in reader}
+        path = int(dict_from_csv.get("path"))
+        lost_pix = int(dict_from_csv.get("lost_pix"))
+        Main_hand = str(dict_from_csv.get("Main_hand"))
+        
 
 def wav2mfcc(file_path, max_pad_len=max_pad_len): #音頻預處理
     wave, sr = librosa.load(file_path, mono=True, sr=None)
@@ -551,89 +570,85 @@ def audio_record(out_file, rec_time):
 
 # 把函式放到改寫到類的run方法中，便可以通過呼叫類方法，實現執行緒的終止
 class VoiceStoppableThread(threading.Thread):
-	def __init__(self,daemon=None):
-		super(VoiceStoppableThread,self).__init__(daemon=daemon)
-		self.__is_running = True
-		self.daemon = daemon
-		self.func = ""
-		#讀取語音模型
-		self.model = load_model('./models/best_hier.h5')
-	def terminate(self):
-		self.__is_running = False
-	def run(self):
-		pid = os.getpid() # 當前進程組 ID
-		
-		while self.__is_running:
-			if voice_on == 'on':
-				print("喚醒功能開啟...開始錄音")
-				#語音存檔路徑與檔名
-				audio_call_path = "./record_wav/calling.wav"
-				# 錄製語音指令 ，秒數
-				audio_record(audio_call_path, 2.5) 
-				print("開始喚醒語音識別...")
-				
-				#預測
-				mfcc = wav2mfcc(audio_call_path)  #這裡放上要判讀的語音檔
-				mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
-				# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']") # label 要針對訓練時的label來定
-				# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy', 'hey_julia.npy', 'hey_star.npy']") #vgg16 labels
-				label_list = ['mark_pen.npy', 'eraser.npy', 'call_func.npy', 'hey_julia.npy', 'hey_star.npy', 'others.npy']
-				label_idx = np.argmax(self.model.predict(mfcc_reshaped))
-				# print("predict=", label_list[label_idx]) # 印出最高機率項目
-				# print("prob=", self.model.predict(mfcc_reshaped))			# 印出個項目的機率
-				prob_list = self.model.predict(mfcc_reshaped)
-				# print(prob_list[0])
-				print("predict={} prob={}".format(label_list[label_idx], prob_list[0][label_idx]))
+    def __init__(self,daemon=None):
+        super(VoiceStoppableThread,self).__init__(daemon=daemon)
+        self.__is_running = True
+        self.daemon = daemon
+        self.func = ""
+        #讀取語音模型
+        self.model = load_model('./models/best_hier.h5')
+    def terminate(self):
+        self.__is_running = False
+    def run(self):
+        pid = os.getpid() # 當前進程組 ID
+        
+        while self.__is_running:
+            if voice_on == 'on':
+                print("喚醒功能開啟...開始錄音")
+                #語音存檔路徑與檔名
+                audio_call_path = "./record_wav/calling.wav"
+                # 錄製語音指令 ，秒數
+                audio_record(audio_call_path, 2.5) 
+                print("開始喚醒語音識別...")
+                #預測
+                mfcc = wav2mfcc(audio_call_path)  #這裡放上要判讀的語音檔
+                mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
+                label_list = ['mark_pen.npy', 'eraser.npy', 'call_func.npy', 'hey_julia.npy', 'hey_star.npy', 'others.npy']
+                label_idx = np.argmax(self.model.predict(mfcc_reshaped))
+                prob_list = self.model.predict(mfcc_reshaped)
+                print("predict={} prob={}".format(label_list[label_idx], prob_list[0][label_idx]))
 
-				#喚醒程式
-				voice_pre = str(np.argmax(self.model.predict(mfcc_reshaped)))
-				#當聽到 hey julia時
-				if voice_pre == "hey_julia":
-					#play julia.mp3
-					
-					#進入語音錄製 與 AI 判讀一次， 輸出 功能項目
-					# print("開始功能語音錄音")
-					# audio_func_path = "./record_wav/func.wav"
-					# audio_record(audio_func_path, 2.5)
-					# print("開始功能語音識別")
-					# mfcc = wav2mfcc('./func.wav')
-					# mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
-					# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']")
-					# print("predict=", np.argmax(model.predict(mfcc_reshaped)))
-					# self.func = str(np.argmax(model.predict(mfcc_reshaped)))
+                #喚醒程式
+                voice_pre = str(np.argmax(self.model.predict(mfcc_reshaped)))
+                print(voice_pre)
+                #當聽到 hey julia時
+                if voice_pre == "hey_julia":
+                    #play julia.mp3
+                    
+                    #進入語音錄製 與 AI 判讀一次， 輸出 功能項目
+                    # print("開始功能語音錄音")
+                    # audio_func_path = "./record_wav/func.wav"
+                    # audio_record(audio_func_path, 2.5)
+                    # print("開始功能語音識別")
+                    # mfcc = wav2mfcc('./func.wav')
+                    # mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
+                    # print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']")
+                    # print("predict=", np.argmax(model.predict(mfcc_reshaped)))
+                    # self.func = str(np.argmax(model.predict(mfcc_reshaped)))
 
-					pass
-				# 當聽到hey 星空時
-				elif voice_pre == "hey_star":
-					#playsound.playsound('./meowx2.wav') # meow meow~
-					#進入語音錄製 與 AI 判讀一次， 輸出 功能項目
-					# print("開始功能語音錄音")
-					# audio_func_path = "./record_wav/func.wav"
-					# audio_record(audio_func_path, 2.5)
-					# print("開始功能語音識別")
-					# mfcc = wav2mfcc('./func.wav')
-					# mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
-					# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']")
-					# print("predict=", np.argmax(model.predict(mfcc_reshaped)))
-					# self.func = str(np.argmax(model.predict(mfcc_reshaped)))
-					pass
-				else:
-					pass
-				
-				time.sleep(0.1) #每0.1秒重新跑一次thread
-			elif voice_on == 'off':
-				time.sleep(0.5) #每0.5秒判斷一次是否重新開啟麥克風
+                    pass
+                # 當聽到hey 星空時
+                elif voice_pre == "hey_star":
+                    #playsound.playsound('./meowx2.wav') # meow meow~
+                    #進入語音錄製 與 AI 判讀一次， 輸出 功能項目
+                    # print("開始功能語音錄音")
+                    # audio_func_path = "./record_wav/func.wav"
+                    # audio_record(audio_func_path, 2.5)
+                    # print("開始功能語音識別")
+                    # mfcc = wav2mfcc('./func.wav')
+                    # mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
+                    # print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']")
+                    # print("predict=", np.argmax(model.predict(mfcc_reshaped)))
+                    # self.func = str(np.argmax(model.predict(mfcc_reshaped)))
+                    pass
+                else:
+                    pass
+                
+                time.sleep(0.1) #每0.1秒重新跑一次thread
+            elif voice_on == 'off':
+                time.sleep(0.5) #每0.5秒判斷一次是否重新開啟麥克風
+
 
 if __name__ == '__main__':
     #執行 語音thread
     voice_thread = VoiceStoppableThread() #創建一個可終止程序的語音thread
-    voice_thread.daemon = True			  #thread True, 判定開啟
+    voice_thread.daemon = True              #thread True, 判定開啟
     voice_thread.start()
 
     # voice_thread.terminate() #終止thread 用
     # pid = os.getpid() #可以查process ID
     # print("start pid:", pid)
-    
+    readconfig(path,lost_pix,Main_hand)
     while (True):
         ret, frame = cap.read()
         if not ret:  # 判定有沒有畫面存在
@@ -656,8 +671,7 @@ if __name__ == '__main__':
         menu = func_window()  # 初始化功能版
         colormain = func_color()
         hands_Pose1, hands_LR = HandsIdentify(imgRGB)  # 副程式處理"手部座標"、"左右手順序"
-        main_MousePose, sub_MousePose = PointPprocessing(hands_Pose1, hands_LR, menu, Main_hand,
-                                                         colormain)  # 分別處理左右手座標之副程式
+        main_MousePose, sub_MousePose = PointPprocessing(hands_Pose1, hands_LR, menu, Main_hand,colormain)  # 分別處理左右手座標之副程式
         # Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points,main_Pose, sub_Pose,main_Pose1, sub_Pose1)
         main_MousePose = Mouse_Pos(main_MousePose)
         sub_MousePose = Mouse_Pos(sub_MousePose)
@@ -670,8 +684,8 @@ if __name__ == '__main__':
         # print("newblack",newblack.shape)
         cv2.imshow("live", frame)
         cv2.imshow("liv", blur)
-        # TrueCanvas = cv2.resize(TrueCanvas, (1920,1920), interpolation=cv2.INTER_AREA)	#resize 指令用於調整畫布大小
+        # TrueCanvas = cv2.resize(TrueCanvas, (1920,1920), interpolation=cv2.INTER_AREA)    #resize 指令用於調整畫布大小
         cv2.imshow("TrueCanvas", TrueCanvas)
-        # time.sleep(0.5)	#跑影片要記得設time.sleep，跑視訊鏡頭要記得關  我花了40分鐘在debug為甚麼我的fps不到1
+        # time.sleep(0.5)    #跑影片要記得設time.sleep，跑視訊鏡頭要記得關  我花了40分鐘在debug為甚麼我的fps不到1
         if cv2.waitKey(1) == ord('q'):
             break
