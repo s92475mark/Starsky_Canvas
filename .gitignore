@@ -1,4 +1,4 @@
 *.mp4
 *.pptx
-config.csv
+*config.csv
 Starsky_Canvas.drawio
