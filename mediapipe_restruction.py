@@ -15,7 +15,7 @@ import pyaudio
 import requests
 from keras.models import load_model
 
-max_pad_len = 120
+max_pad_len = 79
 voice_on = "on" # on/off
 
 # 值， 址id
@@ -585,7 +585,7 @@ def readconfig():
 def wav2mfcc(file_path, max_pad_len=max_pad_len): #音頻預處理
 	wave, sr = librosa.load(file_path, mono=True, sr=None)
 	# print(wave.shape) #(112014,)
-	wave = wave[::3]
+	# wave = wave[::3]
 	# print("wave[::3].shape:",wave.shape) #(37338,) (除3 ??)
 	mfcc = librosa.feature.mfcc(wave, sr=16000) #SR 採樣頻率
 	# print("mfcc.shape in wav2mfcc before padding:",mfcc.shape) #(20 ,73)
