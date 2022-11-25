@@ -1,21 +1,20 @@
-import cv2
-import time
-import mediapipe as mp
-import numpy as np
-import math
 import csv
-import requests
-
-
-#語音套件
-import librosa
-from keras.models import load_model
-from keras.utils import to_categorical
-import playsound #play wav用  pip install playsound
+import math
+# play wav用  pip install playsound
 import os
 import threading
+import time
 import wave
+
+import cv2
+# 語音套件
+import librosa
+import mediapipe as mp
+import numpy as np
 import pyaudio
+import requests
+from keras.models import load_model
+
 max_pad_len = 120
 voice_on = "on" # on/off
 
@@ -23,7 +22,7 @@ voice_on = "on" # on/off
 newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 mpHand = mp.solutions.hands  # 抓手	001
 hands = mpHand.Hands()  # 001
-path = 0  # 本地端可以改成這個，用筆電的視訊鏡頭
+path = 1  # 本地端可以改成這個，用筆電的視訊鏡頭
 cap = cv2.VideoCapture(path)  # 攝影機變數
 pTime = 0  # 起始時間
 f_round = True  # 第一次跑
@@ -38,7 +37,7 @@ Hand_Mark_red = (0, 0, 255)  # 顏色紅色
 colorx = 255
 colorz = 255
 colory = 255
-Main_hand = " "  # 設定主手 Left/Right
+Main_hand = "Right"  # 設定主手 Left/Right
 sub_Pose2 = []
 main_Pose2 = []
 r_standard = 0  # 縮放用-五指平均半徑
@@ -50,26 +49,26 @@ mpDraw = mp.solutions.drawing_utils
 handLmsStyle = mpDraw.DrawingSpec(color=(0, 255, 0), thickness=5)  # 設定點的參數
 handConStyle = mpDraw.DrawingSpec(color=(255, 255, 255), thickness=2)  # 設定線的參數
 token = ' '
+thickness = 5
 
 
 def graphics_menu():
-	graphics_menu = np.full((int(frame.shape[0]), int(frame.shape[1] / 5), 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
-	cv2.rectangle(graphics_menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(graphics_menu, "square", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
-	cv2.rectangle(graphics_menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(graphics_menu, 'round', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+    graphics_menu = np.full((int(frame.shape[0]), int(frame.shape[1] / 5), 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
+    cv2.rectangle(graphics_menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+    cv2.putText(graphics_menu, "square", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+    cv2.rectangle(graphics_menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+    cv2.putText(graphics_menu, 'round', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-	return graphics_menu
+    return graphics_menu
 
 
 def Mouse_Pos(Pos):  # 轉換成鼠標層座標
-	global offset, lost_pix
-	# Pos = Pos
-	Pos = (int((Pos[0] - offset[0]) / lost_pix), int((Pos[1] - offset[1]) / lost_pix))
-	# main_MousePose = (int((main_MousePose[0] - offset[0]) / lost_pix), int((main_MousePose[1] - offset[1]) / lost_pix))
-	# sub_MousePose = (int((sub_MousePose[0] - offset[0]) / lost_pix), int((sub_MousePose[1] - offset[1]) / lost_pix))
-	return Pos
-
+    global offset, lost_pix
+    # Pos = Pos
+    Pos = (int((Pos[0] - offset[0]) / lost_pix), int((Pos[1] - offset[1]) / lost_pix))
+    # main_MousePose = (int((main_MousePose[0] - offset[0]) / lost_pix), int((main_MousePose[1] - offset[1]) / lost_pix))
+    # sub_MousePose = (int((sub_MousePose[0] - offset[0]) / lost_pix), int((sub_MousePose[1] - offset[1]) / lost_pix))
+    return Pos
 
 
 
@@ -408,9 +407,9 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			sub_Pose2 = sub_Pose1
 			main_Pose1 = Mouse_Pos(main_Pose1)
 			sub_Pose1 = Mouse_Pos(sub_Pose1)
-			smailblack1 = cv2.rectangle(smailblack1, main_Pose1, sub_Pose1, (colorx, colory, colorz), 7)
+			smailblack1 = cv2.rectangle(smailblack1, main_Pose1, sub_Pose1, (colorz, colory, colorx), int(thickness*lost_pix))
 		elif main_hand_text == "2" and main_Pose2 != [] and sub_Pose2 != [] and Mode == 'square':
-			cv2.rectangle(newblack, main_Pose2, sub_Pose2, (colorx, colory, colorz), 5)
+			cv2.rectangle(newblack, main_Pose2, sub_Pose2, (colorz, colory, colorx), thickness)
 			main_Pose2 = []
 			sub_Pose2 = []
 		elif main_hand_text == "1" and sub_hand_text == "1" and Mode == 'round':
@@ -581,12 +580,12 @@ def readconfig():
 		lost_pix = int(dict_from_csv.get("lost_pix"))
 		Main_hand = str(dict_from_csv.get("Main_hand"))
 		token = str(dict_from_csv.get("token"))
-		
+
 
 def wav2mfcc(file_path, max_pad_len=max_pad_len): #音頻預處理
 	wave, sr = librosa.load(file_path, mono=True, sr=None)
 	# print(wave.shape) #(112014,)
-	wave = wave[::3] 
+	wave = wave[::3]
 	# print("wave[::3].shape:",wave.shape) #(37338,) (除3 ??)
 	mfcc = librosa.feature.mfcc(wave, sr=16000) #SR 採樣頻率
 	# print("mfcc.shape in wav2mfcc before padding:",mfcc.shape) #(20 ,73)
@@ -622,7 +621,7 @@ def audio_record(out_file, rec_time):
 	stream.stop_stream()
 	stream.close()
 	p.terminate()
-	
+
 	# 保存音频文件
 	with wave.open(out_file, 'wb') as wf:
 		wf.setnchannels(CHANNELS)
@@ -637,7 +636,6 @@ class VoiceStoppableThread(threading.Thread):
 		self.__is_running = True
 		self.daemon = daemon
 		self.func = ""
-		#讀取語音模型
 		self.model = load_model('./models/best_hier.h5')
 	def terminate(self):
 		self.__is_running = False
