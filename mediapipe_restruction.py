@@ -23,7 +23,7 @@ newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 mpHand = mp.solutions.hands  # 抓手	001
 hands = mpHand.Hands()  # 001
 path = 1  # 本地端可以改成這個，用筆電的視訊鏡頭
-cap = cv2.VideoCapture(path)  # 攝影機變數
+
 pTime = 0  # 起始時間
 f_round = True  # 第一次跑
 color = (0, 0, 255)
@@ -53,22 +53,22 @@ thickness = 5
 
 
 def graphics_menu():
-    graphics_menu = np.full((int(frame.shape[0]), int(frame.shape[1] / 5), 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
-    cv2.rectangle(graphics_menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-    cv2.putText(graphics_menu, "square", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
-    cv2.rectangle(graphics_menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-    cv2.putText(graphics_menu, 'round', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+	graphics_menu = np.full((int(frame.shape[0]), int(frame.shape[1] / 4), 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
+	cv2.rectangle(graphics_menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+	cv2.putText(graphics_menu, "square", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	cv2.rectangle(graphics_menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+	cv2.putText(graphics_menu, 'round', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-    return graphics_menu
+	return graphics_menu
 
 
 def Mouse_Pos(Pos):  # 轉換成鼠標層座標
-    global offset, lost_pix
-    # Pos = Pos
-    Pos = (int((Pos[0] - offset[0]) / lost_pix), int((Pos[1] - offset[1]) / lost_pix))
-    # main_MousePose = (int((main_MousePose[0] - offset[0]) / lost_pix), int((main_MousePose[1] - offset[1]) / lost_pix))
-    # sub_MousePose = (int((sub_MousePose[0] - offset[0]) / lost_pix), int((sub_MousePose[1] - offset[1]) / lost_pix))
-    return Pos
+	global offset, lost_pix
+	# Pos = Pos
+	Pos = (int((Pos[0] - offset[0]) / lost_pix), int((Pos[1] - offset[1]) / lost_pix))
+	# main_MousePose = (int((main_MousePose[0] - offset[0]) / lost_pix), int((main_MousePose[1] - offset[1]) / lost_pix))
+	# sub_MousePose = (int((sub_MousePose[0] - offset[0]) / lost_pix), int((sub_MousePose[1] - offset[1]) / lost_pix))
+	return Pos
 
 
 
@@ -381,7 +381,7 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			if main_hand_text == '5':
 				Mode = 'Func'
 				mod = 1
-	elif mod == 'graphics' and sub_Pose1 != []:
+	elif mod == 'graphics':
 		if sub_Pose1 != []:
 			menu = graphics_menu()
 			fx = int(sub_Pose1[0])  # 如果手勢為 1，記錄食指末端的座標
@@ -389,18 +389,18 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			if Mode == 'Func':
 				menu = cv2.circle(menu, sub_Pose1, 10, (255, 255, 255), -1)
 				cv2.imshow("menu", menu)
-		if 10 <= fy <= 40 and 10 <= fx <= 40 and sub_hand_text == '1' and Mode == 'Func':
-			Mode = 'square'
-			try:
-				cv2.destroyWindow("menu")
-			except:
-				pass
-		elif 70 <= fy <= 100 and 10 <= fx <= 40 and sub_hand_text == '1' and Mode == 'Func':
-			Mode = 'round'
-			try:
-				cv2.destroyWindow("menu")
-			except:
-				pass
+			if 10 <= fy <= 40 and 10 <= fx <= 40 and sub_hand_text == '1' and Mode == 'Func':
+				Mode = 'square'
+				try:
+					cv2.destroyWindow("menu")
+				except:
+					pass
+			elif 70 <= fy <= 100 and 10 <= fx <= 40 and sub_hand_text == '1' and Mode == 'Func':
+				Mode = 'round'
+				try:
+					cv2.destroyWindow("menu")
+				except:
+					pass
 		if main_hand_text == "1" and sub_hand_text == "1" and Mode == 'square':
 			# main_Pose1 sub_Pose1
 			main_Pose2 = main_Pose1
@@ -418,7 +418,7 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			main_Pose1 = Mouse_Pos(main_Pose1)
 			sub_Pose1 = Mouse_Pos(sub_Pose1)
 			distance = int(math.sqrt((main_Pose1[0] - sub_Pose1[0]) ** 2 + (main_Pose1[1] - sub_Pose1[1]) ** 2))
-			smailblack1 = cv2.circle(smailblack1, main_Pose1, distance, (0, 0, 225), -1)
+			smailblack1 = cv2.circle(smailblack1, main_Pose1, distance, (colorz, colory, colorx), -1)
 		elif main_hand_text == "2" and Mode == 'round' and distance != []:
 			distance=int(math.sqrt((main_Pose2[0] - sub_Pose2[0]) ** 2 + (main_Pose2[1] - sub_Pose2[1]) ** 2))
 			cv2.circle(newblack, main_Pose2, distance, (0, 0, 225), -1)
@@ -469,31 +469,31 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 
 
 	elif Mode == 'Draw' and main_hand_text == '6':
-        # 起始座標 
+		# 起始座標 
 		ix, iy = 0,0
 		def mouse(event, x, y):
 			global ix, iy
-            # 如果為滑鼠點擊事件
+			# 如果為滑鼠點擊事件
 			if event == cv2.EVENT_LBUTTONDOWN:
 				ix, iy = x, y
 				return ix, iy
-    
+	
 		# cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
-        # 帶入子畫面影片
+		# 帶入子畫面影片
 		subcap = cv2.VideoCapture("disco.mp4")
 		subcap.set(cv2.CAP_PROP_POS_FRAMES, 100)
 
-        # 設定回傳
+		# 設定回傳
 		cv2.setMouseCallback('newblack1', mouse)
 		# 讀取影片
 		while cap.isOpened():
 			ret, frame = cap.read()
 			subret, subframe = subcap.read()
 
-            # 子畫面寬/高縮放
+			# 子畫面寬/高縮放
 			subframe=cv2.resize(subframe,(subframe.shape[1]//10,subframe.shape[0]//10))
 			subw,subh=subframe.shape[:2]
-            #將子畫面放在指定位置，(x,y)是左上角的坐标
+			#將子畫面放在指定位置，(x,y)是左上角的坐标
 			if ix>frame.shape[1]-subw or iy>frame.shape[0]-subh:
 				ix, iy = 0,0
 			frame[iy:iy+subframe.shape[0],ix:ix+subframe.shape[1]] = subframe  
@@ -590,9 +590,9 @@ def wav2mfcc(file_path, max_pad_len=max_pad_len): #音頻預處理
 	mfcc = librosa.feature.mfcc(wave, sr=16000) #SR 採樣頻率
 	# print("mfcc.shape in wav2mfcc before padding:",mfcc.shape) #(20 ,73)
 	pad_width = max_pad_len - mfcc.shape[1] #11 -73
-    # pad_width =  mfcc.shape[1] - max_pad_len  #差距73-11 = 62
+	# pad_width =  mfcc.shape[1] - max_pad_len  #差距73-11 = 62
 	if pad_width <0: mfcc = mfcc[:,0:max_pad_len]
-    # print("mfcc.shape pad_width>11",mfcc.shape)
+	# print("mfcc.shape pad_width>11",mfcc.shape)
 	else: mfcc = np.pad(mfcc, pad_width=((0, 0), (0, pad_width)), mode='constant')
 	# print("mfcc.shape in wav2mfcc after padding:",mfcc.shape) #(20 ,73)
 	return mfcc
@@ -709,6 +709,7 @@ if __name__ == '__main__':
 	# pid = os.getpid() #可以查process ID
 	# print("start pid:", pid)
 	readconfig()
+	cap = cv2.VideoCapture(path)  # 攝影機變數
 	while (True):
 		ret, frame = cap.read()
 		if not ret:  # 判定有沒有畫面存在
@@ -743,7 +744,7 @@ if __name__ == '__main__':
 		cv2.putText(frame, str(int(fps)), (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
 		# print("newblack",newblack.shape)
 		cv2.imshow("live", frame)
-		cv2.imshow("liv", blur)
+		# cv2.imshow("liv", blur)
 		# TrueCanvas = cv2.resize(TrueCanvas, (1920,1920), interpolation=cv2.INTER_AREA)	#resize 指令用於調整畫布大小
 		cv2.imshow("TrueCanvas", TrueCanvas)
 		# time.sleep(0.5)	#跑影片要記得設time.sleep，跑視訊鏡頭要記得關  我花了40分鐘在debug為甚麼我的fps不到1
