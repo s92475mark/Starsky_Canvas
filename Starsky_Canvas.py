@@ -102,6 +102,8 @@ def Hand_Text(finger_angle):  # 根據手指角度的串列內容，返回對應
 		return '0'  # 握拳
 	elif f0 < 50 and f1 > 50 and f2 > 50 and f3 > 50 and f4 > 50:
 		return '4'  # 比讚
+	elif f0 < 50 and f1 < 50 and f2 >= 50 and f3 >= 50 and f4 < 50:
+		return '6'  # disco
 	else:
 		return ''
 
@@ -390,24 +392,57 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		cv2.rectangle(colormain, (70, 400), (520, 420), (colorz, colory, colorx), -1)  # 在畫面上方放入紅色正方形
 		cv2.rectangle(colormain, (70, 420), (90, 460), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
 		cv2.imshow("menu", colormain)
-	# if Mode == 'Draw' and main_hand_text == '5' and sub_hand_text == '5':
-	# 	cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-	# 	shadow = cv2.imread('black.jpg')
-	# 	if not cap.isOpened():
-	# 		print("YA! 畫面切掉了!!")
-	# 		exit()
 
-	# 	while True:
-	# 		ret, frame = cap.read()
-	# 		if not ret:
-	# 			print("Cannot receive frame")
-	# 			break
-	# 	output = cv2.addWeighted(frame, shadow)
-	# 	cv2.imshow('Shadow', output)
-	# return Mode
+
+	elif Mode == 'Draw' and main_hand_text == '5' and sub_hand_text == '5':
+		newblack = np.full((frame.shape[0], frame.shape[1], 3), (0, 0, 0), np.uint8)
+
+
+	elif Mode == 'Draw' and main_hand_text == '6':
+        # 起始座標
+		ix, iy = 0, 0
+
+		def mouse(event, x, y):
+			global ix, iy
+            # 如果為滑鼠點擊事件
+			if event == cv2.EVENT_LBUTTONDOWN:
+				ix, iy = x, y
+				return ix, iy
+
+        # cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
+        # 帶入子畫面影片
+		subcap = cv2.VideoCapture("disco.mp4")
+		subcap.set(cv2.CAP_PROP_POS_FRAMES, 150)
+
+        # 設定回傳
+		cv2.setMouseCallback('newblack1', mouse)
+        # 讀取影片
+		while cap.isOpened():
+			ret, frame = cap.read()
+			subret, subframe = subcap.read()
+
+            # 子畫面寬/高縮放
+			subframe = cv2.resize(subframe, (subframe.shape[1] // 10, subframe.shape[0] // 10))
+			subw, subh = subframe.shape[:2]
+            # 將子畫面放在指定位置，(x,y)是左上角的坐标
+			if ix > frame.shape[1] - subw or iy > frame.shape[0] - subh:
+				ix, iy = 0, 0
+			frame[iy:iy + subframe.shape[0], ix:ix + subframe.shape[1]] = subframe
+
+			cv2.imshow('newblack1', frame)
+			if cv2.waitKey(1) & 0xFF == ord('q'):
+				break
+			if cv2.getWindowProperty('newblack1', cv2.WND_PROP_AUTOSIZE) < 1:
+				break
+			else:
+				return Mode
+
+
+	return Mode
+
 # 若主手不伸出食指作畫，則清除主手座標紀錄
 # print(mod)
-	return Mode, newblack
+# return Mode
 
 
 def func_window():  ###準備功能視窗 -> menu

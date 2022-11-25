@@ -22,7 +22,7 @@ voice_on = "on"  # on/off
 newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 mpHand = mp.solutions.hands  # 抓手	001
 hands = mpHand.Hands()  # 001
-path = 1  # 本地端可以改成這個，用筆電的視訊鏡頭
+path = 0  # 本地端可以改成這個，用筆電的視訊鏡頭
 
 pTime = 0  # 起始時間
 f_round = True  # 第一次跑
