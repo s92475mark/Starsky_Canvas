@@ -115,6 +115,8 @@ def Hand_Text(finger_angle):  # 根據手指角度的串列內容，返回對應
 		return '0'  # 握拳
 	elif f0 < 50 and f1 > 50 and f2 > 50 and f3 > 50 and f4 > 50:
 		return '4'  # 比讚
+	elif f0 < 50 and f1 < 50 and f2 >= 50 and f3 >= 50 and f4 < 50:
+		return '6'  # disco
 	else:
 		return ''
 
@@ -464,7 +466,46 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 
 
 	elif Mode == 'Draw' and main_hand_text == '5' and sub_hand_text == '5':
-		newblack = np.full((frame.shape[1], frame.shape[0], 3), (0, 0, 0), np.uint8)   
+		newblack = np.full((frame.shape[0], frame.shape[1], 3), (0, 0, 0), np.uint8)   
+
+
+	elif Mode == 'Draw' and main_hand_text == '6':
+        # 起始座標 
+		ix, iy = 0,0
+		def mouse(event, x, y):
+			global ix, iy
+            # 如果為滑鼠點擊事件
+			if event == cv2.EVENT_LBUTTONDOWN:
+				ix, iy = x, y
+				return ix, iy
+    
+		# cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
+        # 帶入子畫面影片
+		subcap = cv2.VideoCapture("disco.mp4")
+		subcap.set(cv2.CAP_PROP_POS_FRAMES, 100)
+
+        # 設定回傳
+		cv2.setMouseCallback('newblack1', mouse)
+		# 讀取影片
+		while cap.isOpened():
+			ret, frame = cap.read()
+			subret, subframe = subcap.read()
+
+            # 子畫面寬/高縮放
+			subframe=cv2.resize(subframe,(subframe.shape[1]//10,subframe.shape[0]//10))
+			subw,subh=subframe.shape[:2]
+            #將子畫面放在指定位置，(x,y)是左上角的坐标
+			if ix>frame.shape[1]-subw or iy>frame.shape[0]-subh:
+				ix, iy = 0,0
+			frame[iy:iy+subframe.shape[0],ix:ix+subframe.shape[1]] = subframe  
+
+			cv2.imshow('newblack1', frame)			
+			if cv2.waitKey(1) & 0xFF == ord('q'):
+				break
+			if cv2.getWindowProperty('newblack1', cv2.WND_PROP_AUTOSIZE) < 1:
+				break
+			else:
+				return Mode
 
 
 	return Mode
@@ -550,12 +591,10 @@ def wav2mfcc(file_path, max_pad_len=max_pad_len): #音頻預處理
 	mfcc = librosa.feature.mfcc(wave, sr=16000) #SR 採樣頻率
 	# print("mfcc.shape in wav2mfcc before padding:",mfcc.shape) #(20 ,73)
 	pad_width = max_pad_len - mfcc.shape[1] #11 -73
-	# pad_width =  mfcc.shape[1] - max_pad_len  #差距73-11 = 62
-	if pad_width <0:
-	  mfcc = mfcc[:,0:max_pad_len]
-	#   print("mfcc.shape pad_width>11",mfcc.shape)
-	else:
-	  mfcc = np.pad(mfcc, pad_width=((0, 0), (0, pad_width)), mode='constant')
+    # pad_width =  mfcc.shape[1] - max_pad_len  #差距73-11 = 62
+	if pad_width <0: mfcc = mfcc[:,0:max_pad_len]
+    # print("mfcc.shape pad_width>11",mfcc.shape)
+	else: mfcc = np.pad(mfcc, pad_width=((0, 0), (0, pad_width)), mode='constant')
 	# print("mfcc.shape in wav2mfcc after padding:",mfcc.shape) #(20 ,73)
 	return mfcc
 
