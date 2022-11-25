@@ -248,8 +248,7 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 	return main_mouse_pos, sub_mouse_pos
 
 
-def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,
-					main_Pose1, sub_Pose1, menu, frame, colormain):
+def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,main_Pose1, sub_Pose1, menu, frame, colormain):
 	# 主手執行作畫
 	global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard, time_standard, newblack
 	# print(Mode)
