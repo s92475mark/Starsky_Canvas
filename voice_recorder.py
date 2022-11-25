@@ -7,7 +7,7 @@ def audio_record(out_file, rec_time):
     CHUNK = 1024
     FORMAT = pyaudio.paInt16 #16bit编码格式
     CHANNELS = 2 #单声道
-    RATE = 16000 #16000采样频率
+    RATE = 22050 #16000采样频率
     p = pyaudio.PyAudio()
     # 创建音频流
     stream = p.open(format=FORMAT, # 音频流wav格式

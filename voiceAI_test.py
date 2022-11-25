@@ -10,15 +10,17 @@ import soundfile as sf
 
 count_long = 0
 count_short = 0
+n_mfcc = 60
+sr_set = 22050
 
 max_pad_len = 79
 def wav2mfcc(file_path, max_pad_len=max_pad_len):
-    global count_long, count_short
+    global count_long, count_short, n_mfcc, sr_set
     wave, sr = librosa.load(file_path, mono=True, sr=None)
     # print(wave.shape) #(112014,)
     # wave = wave[::3] 
     print("wave[::3].shape:",wave.shape) #(37338,) (除3 ??)
-    mfcc = librosa.feature.mfcc(wave, sr=22050) #SR 採樣頻率
+    mfcc = librosa.feature.mfcc(wave, n_mfcc=n_mfcc, sr=sr_set) #SR 採樣頻率
     print("mfcc.shape in wav2mfcc before padding:",mfcc.shape) #(20 ,73)
     pad_width = max_pad_len - mfcc.shape[1] # 設定的長度-抓到音訊的長度=需要補足的長度
     # pad_width =  mfcc.shape[1] - max_pad_len  #差距73-11 = 62
@@ -32,18 +34,19 @@ def wav2mfcc(file_path, max_pad_len=max_pad_len):
       mfcc = np.pad(mfcc, pad_width=((0, 0), (0, pad_width)), mode='constant')
       print("mfcc.shape in wav2mfcc after padding:",mfcc.shape) 
       count_short+=1
+    # print("count long and short:",count_long, " ",count_short)
     return mfcc
 
 ##########  這裡設定要測試的語音檔  ###########
 file_path = "./record_wav/star_0.wav"
 
 ##########  設定語音模型  ######333
-model = load_model('./models/m1125_mfccnormal_neu_l2s_best.h5')
+model = load_model('./models/m1125_VGG16_mfcc60_RN_best.h5')
 
 
 #預測
 mfcc = wav2mfcc(file_path)  
-mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
+mfcc_reshaped = mfcc.reshape(1, n_mfcc, max_pad_len, 1)
 # print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']")
 # print("predict=", np.argmax(model.predict(mfcc_reshaped)))
 # print("predict=", model.predict(mfcc_reshaped))
