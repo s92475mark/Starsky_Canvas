@@ -56,7 +56,7 @@ pics = ['pig','smile','money','heart','plans']
 sub_hand_text = '-1'
 
 def graphics_menu():
-	graphics_menu = np.full((int(frame.shape[0]), int(frame.shape[1] / 4), 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
+	graphics_menu = np.full((int(frame.shape[0]), int(frame.shape[1] / 4), 3), (0, 0, 0), np.uint8)  # 產生視訊畫面大小的黑色的圖
 	cv2.rectangle(graphics_menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
 	cv2.putText(graphics_menu, "square", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(graphics_menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
@@ -170,8 +170,7 @@ def ScalingDisplacement(newblack, lost_pix, offset):  # 畫布的縮放位移
 	# smailblack1 = smailblack[int(lost_pix+offset[1]):int(newblack.shape[0]-lost_pix+offset[1]),
 	# int(lost_pix + offset[0]):int(newblack.shape[1]-lost_pix + offset[0])]	#
 	# print(offset[0],(int(newblack.shape[1] * lost_pix) + offset[0]))
-	smailblack1 = smailblack[(offset[1]):(int(newblack.shape[0] * lost_pix) + offset[1]),
-				  offset[0]:(int(newblack.shape[1] * lost_pix) + offset[0])]
+	smailblack1 = smailblack[(offset[1]):(int(newblack.shape[0] * lost_pix) + offset[1]),offset[0]:(int(newblack.shape[1] * lost_pix) + offset[0])]
 
 	newblack1 = newblack.copy()
 	cv2.rectangle(newblack1, ((offset[0]), (offset[1])),
@@ -268,10 +267,7 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,main_Pose1, sub_Pose1, menu, frame, colormain):
 	# 主手執行作畫
 	global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard,time_standard_long, time_standard, sub_Pose2, main_Pose2,distance, newblack,token, pic_change, child
-	# print(Mode)
-	# print(sub_hand_text,Mode,mod)
-	# print(mod)
-	print(Mode,sub_hand_text)
+
 	if Mode == 'Draw' and main_hand_text == '1'and sub_hand_text!='7':
 		# 轉為"紅色鼠標"於監視器上
 		frame = cv2.circle(frame, main_Pose1, 10, Hand_Mark_red, -1)  # 鼠標藍色 顯示於 監視器上
@@ -524,17 +520,19 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 # 若主手不伸出食指作畫，則清除主手座標紀錄
 # print(mod)
 # return Mode
-def child_Mode(pic_change,smailblack1,cover_pics,sub_hand_text):
+def child_Mode(pic_change,child_black,cover_pics,sub_hand_text,smailblack1):
 	global pics
 	child = True
-	gary = cv2.cvtColor(cover_pics, cv2.COLOR_BGR2GRAY)
-	dst = 255 - gary #dst 為反轉顏色之後
-	dst = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
-	dst =cv2.resize(dst,(smailblack1.shape[1],smailblack1.shape[0]))
-	smailblack1 = cv2.addWeighted(smailblack1, 0.5, dst, 0.3, 70)
+	# gary = cv2.cvtColor(cover_pics, cv2.COLOR_BGR2GRAY)
+	# dst = 255 - gary #dst 為反轉顏色之後
+	# dst = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
+	dst =cv2.resize(cover_pics,(child_black.shape[0],child_black.shape[0]))
+	# print((child_black.shape[1] - dst.shape[1])/2,((child_black.shape[1] - dst.shape[1])/2)+child_black.shape[0])
+	child_black[0:child_black.shape[0],int((child_black.shape[1] - dst.shape[1])/2):int(((child_black.shape[1] - dst.shape[1])/2)+child_black.shape[0])] = dst
+	smailblack1 = cv2.addWeighted(smailblack1, 0.5, child_black, 0.3, 70)
 	if sub_hand_text == '2':
 		child = False
-	return smailblack1,pic_change,child
+	return child_black,pic_change,child,smailblack1
 
 def func_window():  ###準備功能視窗 -> menu
 	menu = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
@@ -718,13 +716,13 @@ class VoiceStoppableThread(threading.Thread):
 
 if __name__ == '__main__':
 	#執行 語音thread
-	# voice_thread = VoiceStoppableThread() #創建一個可終止程序的語音thread
-	# voice_thread.daemon = True			  #thread True, 判定開啟
-	# voice_thread.start()
+	voice_thread = VoiceStoppableThread() #創建一個可終止程序的語音thread
+	voice_thread.daemon = True			  #thread True, 判定開啟
+	voice_thread.start()
 
-	# voice_thread.terminate() #終止thread 用
-	# pid = os.getpid() #可以查process ID
-	# print("start pid:", pid)
+	voice_thread.terminate() #終止thread 用
+	pid = os.getpid() #可以查process ID
+	print("start pid:", pid)
 	readconfig()
 	cap = cv2.VideoCapture(path)  # 攝影機變數
 	while (True):
@@ -744,14 +742,19 @@ if __name__ == '__main__':
 		smailblack1 = ScalingDisplacement(newblack, lost_pix, offset)  # 縮小畫布
 
 		if child :
-			print(child,sub_hand_text)
+			# print(child,sub_hand_text)
 			key = cv2.waitKey(1)
-			if key & 0xFF == 83 or key & 0xFF == ord('e'):
-				pic_change+= 1
-				cover_pics = cv2.imread('./child_pic/'+pics[pic_change]+'.png')
-			elif pic_change >= 5:
+			print(pic_change)
+			if pic_change >= 5:
+				# print("2345")
 				pic_change=0
-			smailblack1,pic_change,child = child_Mode(pic_change,smailblack1,cover_pics,sub_hand_text)  #呼叫child Mode
+
+
+			elif key & 0xFF == 83 or key & 0xFF == ord('e'):
+				cover_pics = cv2.imread('./child_pic/'+pics[pic_change]+'.png')
+				pic_change+= 1
+			child_black = np.full((int(frame.shape[0]), int(frame.shape[1]), 3), (0, 0, 0), np.uint8)  # 產生黑色的圖
+			child_black,pic_change,child,smailblack1 = child_Mode(pic_change,child_black,cover_pics,sub_hand_text,smailblack1)  #呼叫child Mode
 			
 		frame = cv2.flip(frame, 1)  # 畫面左右翻轉，放回畫面frame
 		
