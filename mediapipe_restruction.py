@@ -15,20 +15,14 @@ import pyaudio
 import requests
 from keras.models import load_model
 
-
-sr_set = 22050
-n_mfcc= 60
-count_long = 0
-count_short = 0
-
-max_pad_len = 79
-voice_on = "on"  # on/off
+max_pad_len = 120
+voice_on = "on" # on/off
 
 # 值， 址id
 newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 mpHand = mp.solutions.hands  # 抓手	001
 hands = mpHand.Hands()  # 001
-path = 0  # 本地端可以改成這個，用筆電的視訊鏡頭
+path = 1  # 本地端可以改成這個，用筆電的視訊鏡頭
 
 pTime = 0  # 起始時間
 f_round = True  # 第一次跑
@@ -38,6 +32,7 @@ offset = [0, 0]  # 偏移(x為正往右偏移，y為正往下偏移)
 dots = []
 Mode = 'Draw'  # 'Draw'為作畫模式/ 'Func' 為功能板模式
 mod = 1
+pic_change = 0
 Hand_Mark_blue = (255, 0, 0)  # 顏色藍色
 Hand_Mark_red = (0, 0, 255)  # 顏色紅色
 colorx = 255
@@ -56,7 +51,9 @@ handLmsStyle = mpDraw.DrawingSpec(color=(0, 255, 0), thickness=5)  # 設定點�
 handConStyle = mpDraw.DrawingSpec(color=(255, 255, 255), thickness=2)  # 設定線的參數
 token = ' '
 thickness = 5
-
+child = False
+pics = ['pig','smile','money','heart','plans']
+sub_hand_text = '-1'
 
 def graphics_menu():
 	graphics_menu = np.full((int(frame.shape[0]), int(frame.shape[1] / 4), 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
@@ -75,6 +72,7 @@ def Mouse_Pos(Pos):  # 轉換成鼠標層座標
 	# main_MousePose = (int((main_MousePose[0] - offset[0]) / lost_pix), int((main_MousePose[1] - offset[1]) / lost_pix))
 	# sub_MousePose = (int((sub_MousePose[0] - offset[0]) / lost_pix), int((sub_MousePose[1] - offset[1]) / lost_pix))
 	return Pos
+
 
 
 def Mouse(Canvas, main_MousePose, sub_MousePose, mod):
@@ -121,6 +119,8 @@ def Hand_Text(finger_angle):  # 根據手指角度的串列內容，返回對應
 		return '4'  # 比讚
 	elif f0 < 50 and f1 < 50 and f2 >= 50 and f3 >= 50 and f4 < 50:
 		return '6'  # disco
+	elif f0 < 50 and f1< 50 and f2 >=50 and f3 >=50 and f4>=50:
+		return '7' #child 
 	else:
 		return ''
 
@@ -244,8 +244,6 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 			sub_Pose = (hands_Pose[hands_LR.index(hands_LR[i])])  # 當前抓取到的手的全部座標
 			sub_Pose1 = [int(sub_Pose.landmark[8].x * frame.shape[1]),
 						 int(sub_Pose.landmark[8].y * frame.shape[0])]  # 當前抓取到的手的食指座標
-			# print("1111",sub_Pose1)
-			# print("shape1",frame.shape[1])
 			# 副手鼠標顯示在監視器上
 			sub_mouse_pos = [int(sub_Pose.landmark[8].x * frame.shape[1]),
 							 int(sub_Pose.landmark[8].y * frame.shape[0])]  # 副手食指位置給鼠標用
@@ -264,23 +262,22 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 		Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,
 						main_Pose1, sub_Pose1, menu, frame, colormain)
 
-	return main_mouse_pos, sub_mouse_pos
+	return main_mouse_pos, sub_mouse_pos, sub_hand_text
 
 
-def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,
-					main_Pose1, sub_Pose1, menu, frame, colormain):
+def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,main_Pose1, sub_Pose1, menu, frame, colormain):
 	# 主手執行作畫
-	global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard, time_standard_long, time_standard, sub_Pose2, main_Pose2, distance, newblack, token
+	global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard,time_standard_long, time_standard, sub_Pose2, main_Pose2,distance, newblack,token, pic_change, child
 	# print(Mode)
 	# print(sub_hand_text,Mode,mod)
-	if Mode == 'Draw' and main_hand_text == '1':
-
+	# print(mod)
+	print(Mode,sub_hand_text)
+	if Mode == 'Draw' and main_hand_text == '1'and sub_hand_text!='7':
 		# 轉為"紅色鼠標"於監視器上
 		frame = cv2.circle(frame, main_Pose1, 10, Hand_Mark_red, -1)  # 鼠標藍色 顯示於 監視器上
 		fx = int(main_finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
 		fy = int(main_finger_points[8][1])
 		dots.append([fx, fy])  # 記錄食指座標
-		# print(dots)
 		dl = len(dots)
 		if dl > 1:
 			dx1 = dots[dl - 2][0]
@@ -288,11 +285,12 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			dx2 = dots[dl - 1][0]
 			dy2 = dots[dl - 1][1]  # 這一刻的食指xy座標
 			cv2.line(newblack, (dx1, dy1), (dx2, dy2), color, 5)  # 取兩個時間差的點畫線，在黑色畫布上
-		# print(dots)
 		if dl >= 100:  ###當dots累積超過50組座標，將上上一刻與上衣刻的座標記錄起來，並刷新整組座標紀錄
 			dots = [(dots[dl - 2]), (dots[dl - 1])]
-	# print(dots)
 	# 若副手伸出食中指 : 1. 伸出"副手食中指"，則停止作畫功能 -> 進入功能選擇階段 -> 直到"副手全張開" 則關閉功能選擇階段， 可以繼續作畫
+	elif Mode == 'Draw' and sub_hand_text == '7':
+		child = True
+		# print('xxxxinxxxx')
 	elif sub_hand_text == '1' and mod == 1 and Mode != 'zoon_move':
 		Mode = 'Func'  # 停止主手迴圈，進入副手迴圈
 		fx = int(sub_finger_points[8][0] / 2)  # 如果手勢為 1，記錄食指末端的座標
@@ -307,9 +305,16 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		elif 130 <= fy <= 160 and 10 <= fx <= 40:
 			mod = 'graphics'
 		elif 190 <= fy <= 220 and 10 <= fx <= 40:
-			pass
+			child = True
+			Mode = "Draw"
+			mod = 1
+			try:
+				cv2.destroyWindow("menu")
+			except:
+				pass
+
 		elif 250 <= fy <= 280 and 10 <= fx <= 40:
-			cv2.imwrite('./test.png', newblack)
+			cv2.imwrite('./test.png',newblack)
 			sendLineNotify(token)
 		elif 310 <= fy <= 340 and 10 <= fx <= 40:
 			exit()
@@ -334,19 +339,17 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 				a = [int(sub_finger_points[i][0]), int(sub_finger_points[i][1])]
 				fingertip.append(a)
 				if mod != 4:
-					smailblack1 = cv2.circle(smailblack1, a, 10, (170, 0, 170), -1)
-			middle = int((fingertip[0][0] + fingertip[3][0]) / 2), int(
-				(fingertip[0][1] + fingertip[3][1]) / 2)  # 計算中心點座標
-			Dmiddle = (((middle[0] - middle_standard[0]) ** 2) + (
-						(middle[1] - middle_standard[1]) ** 2)) ** 0.5  # 座標偏移量
+					smailblack1 = cv2.circle(smailblack1, a, 10, (170,0,170), -1)
+			middle = int((fingertip[0][0] + fingertip[3][0]) / 2), int((fingertip[0][1] + fingertip[3][1]) / 2)  # 計算中心點座標
+			Dmiddle = (((middle[0] - middle_standard[0]) ** 2) + ((middle[1] - middle_standard[1]) ** 2)) ** 0.5  # 座標偏移量
 			for j in range(len(fingertip)):
 				fingertip_R1 = (((fingertip[j][0] - middle[0]) ** 2 + (fingertip[j][1] - middle[1]) ** 2) ** 0.5)
 				fingertip_R = fingertip_R + fingertip_R1
-			time1 = (int((time.time() - time_standard) / (time_standard_long / 5)))
+			time1 = (int((time.time() - time_standard)/(time_standard_long/5)))
 			if time1 <= 5 and mod != 4:
 				for k in range(time1):
 					try:
-						cv2.line(smailblack1, (fingertip[k]), (fingertip[k + 1]), color, 5)
+						cv2.line(smailblack1, (fingertip[k]), (fingertip[k+1]), color, 5)
 					except:
 						cv2.line(smailblack1, (fingertip[4]), (fingertip[0]), color, 5)
 			fingertip_R = int(fingertip_R / 5)  # 平均長度
@@ -354,7 +357,7 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 				cv2.circle(smailblack1, (middle), int(fingertip_R), (0, 255, 0), 1)
 				middle1 = Mouse_Pos(middle)
 				smailblack1 = cv2.circle(smailblack1, (middle1), 10, color, -1)
-			if mod != 4:
+			if mod !=  4:
 				if Dmiddle >= 20:  # 如果中心點偏移20pix以上 重置時間與中心點位置
 					middle_standard = [middle[0], middle[1]]
 					time_standard = time.time()
@@ -415,10 +418,9 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			sub_Pose2 = sub_Pose1
 			main_Pose1 = Mouse_Pos(main_Pose1)
 			sub_Pose1 = Mouse_Pos(sub_Pose1)
-			smailblack1 = cv2.rectangle(smailblack1, main_Pose1, sub_Pose1, (colorz, colory, colorx),
-										int(thickness * lost_pix))
+			smailblack1 = cv2.rectangle(smailblack1, main_Pose1, sub_Pose1, (colorz, colory, colorx), int(thickness*lost_pix))
 		elif main_hand_text == "2" and main_Pose2 != [] and sub_Pose2 != [] and Mode == 'square':
-			cv2.rectangle(newblack, main_Pose2, sub_Pose2, (colorz, colory, colorx), int(thickness * lost_pix))
+			cv2.rectangle(newblack, main_Pose2, sub_Pose2, (colorz, colory, colorx), thickness)
 			main_Pose2 = []
 			sub_Pose2 = []
 		elif main_hand_text == "1" and sub_hand_text == "1" and Mode == 'round':
@@ -429,15 +431,15 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			distance = int(math.sqrt((main_Pose1[0] - sub_Pose1[0]) ** 2 + (main_Pose1[1] - sub_Pose1[1]) ** 2))
 			smailblack1 = cv2.circle(smailblack1, main_Pose1, distance, (colorz, colory, colorx), -1)
 		elif main_hand_text == "2" and Mode == 'round' and distance != []:
-			distance = int(math.sqrt((main_Pose2[0] - sub_Pose2[0]) ** 2 + (main_Pose2[1] - sub_Pose2[1]) ** 2))
+			distance=int(math.sqrt((main_Pose2[0] - sub_Pose2[0]) ** 2 + (main_Pose2[1] - sub_Pose2[1]) ** 2))
 			cv2.circle(newblack, main_Pose2, distance, (0, 0, 225), -1)
-		# main_Pose2 = []
+			#main_Pose2 = []
 		if main_hand_text == "5" and Mode != []:
 			Mode = 'Func'
 			mod = 1
-	# print(fx, fy)
-	# print(Mode)
-	# print(main_hand_text)
+		#print(fx, fy)
+		#print(Mode)
+		#print(main_hand_text)
 	# 副手全張：關閉功能版，轉回繪畫模式
 	elif sub_hand_text == '2' and Mode == 'Func' and mod == 1:
 		Mode = 'Draw'
@@ -474,20 +476,19 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 
 
 	elif Mode == 'Draw' and main_hand_text == '5' and sub_hand_text == '5':
-		newblack = np.full((frame.shape[0], frame.shape[1], 3), (0, 0, 0), np.uint8)
+		newblack = np.full((frame.shape[0], frame.shape[1], 3), (0, 0, 0), np.uint8)   
 
 
 	elif Mode == 'Draw' and main_hand_text == '6':
-		# 起始座標
-		ix, iy = 0, 0
-
+		# 起始座標 
+		ix, iy = 0,0
 		def mouse(event, x, y):
 			global ix, iy
 			# 如果為滑鼠點擊事件
 			if event == cv2.EVENT_LBUTTONDOWN:
 				ix, iy = x, y
 				return ix, iy
-
+	
 		# cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
 		# 帶入子畫面影片
 		subcap = cv2.VideoCapture("disco.mp4")
@@ -501,14 +502,14 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			subret, subframe = subcap.read()
 
 			# 子畫面寬/高縮放
-			subframe = cv2.resize(subframe, (subframe.shape[1] // 10, subframe.shape[0] // 10))
-			subw, subh = subframe.shape[:2]
-			# 將子畫面放在指定位置，(x,y)是左上角的坐标
-			if ix > frame.shape[1] - subw or iy > frame.shape[0] - subh:
-				ix, iy = 0, 0
-			frame[iy:iy + subframe.shape[0], ix:ix + subframe.shape[1]] = subframe
+			subframe=cv2.resize(subframe,(subframe.shape[1]//10,subframe.shape[0]//10))
+			subw,subh=subframe.shape[:2]
+			#將子畫面放在指定位置，(x,y)是左上角的坐标
+			if ix>frame.shape[1]-subw or iy>frame.shape[0]-subh:
+				ix, iy = 0,0
+			frame[iy:iy+subframe.shape[0],ix:ix+subframe.shape[1]] = subframe  
 
-			cv2.imshow('newblack1', frame)
+			cv2.imshow('newblack1', frame)			
 			if cv2.waitKey(1) & 0xFF == ord('q'):
 				break
 			if cv2.getWindowProperty('newblack1', cv2.WND_PROP_AUTOSIZE) < 1:
@@ -516,34 +517,41 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			else:
 				return Mode
 
+
 	return Mode
 
 
 # 若主手不伸出食指作畫，則清除主手座標紀錄
 # print(mod)
 # return Mode
-
+def child_Mode(pic_change,smailblack1,cover_pics,sub_hand_text):
+	global pics
+	child = True
+	gary = cv2.cvtColor(cover_pics, cv2.COLOR_BGR2GRAY)
+	dst = 255 - gary #dst 為反轉顏色之後
+	dst = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
+	dst =cv2.resize(dst,(smailblack1.shape[1],smailblack1.shape[0]))
+	smailblack1 = cv2.addWeighted(smailblack1, 0.5, dst, 0.3, 70)
+	if sub_hand_text == '2':
+		child = False
+	return smailblack1,pic_change,child
 
 def func_window():  ###準備功能視窗 -> menu
-	# collor = [(0, 0, 255),(0, 255, 255),(255, 0, 255),(135,23,126)]
-	# x = 20
-	# y = int(((int(frame.shape[1] / 4)) - (len(collor) * x))/(len(collor)+1))
-	# print(y)
 	menu = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 	menu = cv2.resize(menu, (int(frame.shape[1] / 4), frame.shape[0]), interpolation=cv2.INTER_AREA)  # 依照讀取到的畫面調整功能版大小
 	# smailblack2 = ScalingDisplacement(menu, lost_pix, offset)  # 縮小畫布
 	# for i in range(len(collor)):
 	#	 cv2.rectangle(menu, (int(y*(i+1) + x * i),30), (int((i+1)*(y+x)), (30+x)), collor[i], -1)  # 在畫面上方放入紅色正方形
 	cv2.rectangle(menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, "color", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	cv2.putText(menu, "Color", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'screen adjustment', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+	cv2.putText(menu, 'Screen Adjustment', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 130), (40, 160), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'graphics', (50, 145), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	cv2.putText(menu, 'Graphics', (50, 145), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 190), (40, 220), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'else', (50, 205), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	cv2.putText(menu, 'Child Mode', (50, 205), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 250), (40, 280), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'Save and line', (50, 265), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	cv2.putText(menu, 'Save and Line', (50, 265), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 310), (40, 340), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
 	cv2.putText(menu, 'Exit', (50, 345), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	return menu
@@ -575,55 +583,43 @@ def sendLineNotify(token):
 	msg = '圖片來瞜'
 	url = 'https://notify-api.line.me/api/notify'
 	headers = {'Authorization': 'Bearer ' + token}
-	data = {'message': msg}
+	data = {'message':msg}
 	image = open('./test.png', 'rb')
-	imageFile = {'imageFile': image}
+	imageFile = {'imageFile' : image}
 	data = requests.post(url, headers=headers, data=data, files=imageFile)
-
-
-# data = requests.post(url, headers=headers, files=imageFile)
+	# data = requests.post(url, headers=headers, files=imageFile)
 def readconfig():
-	global path, lost_pix, Main_hand, token
+	global path,lost_pix,Main_hand,token
 	with open('./config.csv', mode='r') as inp:
 		reader = csv.reader(inp)
-		dict_from_csv = {rows[0]: rows[1] for rows in reader}
+		dict_from_csv = {rows[0]:rows[1] for rows in reader}
 		path = int(dict_from_csv.get("path"))
 		lost_pix = int(dict_from_csv.get("lost_pix"))
 		Main_hand = str(dict_from_csv.get("Main_hand"))
 		token = str(dict_from_csv.get("token"))
 
 
-def wav2mfcc(file_path):
-	global count_long, count_short, n_mfcc, sr_set, max_pad_len
+def wav2mfcc(file_path, max_pad_len=max_pad_len): #音頻預處理
 	wave, sr = librosa.load(file_path, mono=True, sr=None)
 	# print(wave.shape) #(112014,)
-	# wave = wave[::3] 
+	wave = wave[::3]
 	# print("wave[::3].shape:",wave.shape) #(37338,) (除3 ??)
-	mfcc = librosa.feature.mfcc(wave, n_mfcc=n_mfcc, sr=sr_set) #SR 採樣頻率
+	mfcc = librosa.feature.mfcc(wave, sr=16000) #SR 採樣頻率
 	# print("mfcc.shape in wav2mfcc before padding:",mfcc.shape) #(20 ,73)
-	pad_width = max_pad_len - mfcc.shape[1] # 設定的長度-抓到音訊的長度=需要補足的長度
+	pad_width = max_pad_len - mfcc.shape[1] #11 -73
 	# pad_width =  mfcc.shape[1] - max_pad_len  #差距73-11 = 62
-	# 若抓到的音訊長度大於設定長度，取全部資訊
-	if pad_width <0:
-	  mfcc = mfcc[:,0:max_pad_len]
-	  print("mfcc.shape 抓到的音訊大於設定長度",mfcc.shape)
-	  count_long+=1
-	# 若抓到的音訊長度小於設定長度，補足0
-	else:
-	  mfcc = np.pad(mfcc, pad_width=((0, 0), (0, pad_width)), mode='constant')
-	  print("mfcc.shape in wav2mfcc after padding:",mfcc.shape) 
-	  count_short+=1
-	# print("count long and short:",count_long, " ",count_short)
+	if pad_width <0: mfcc = mfcc[:,0:max_pad_len]
+	# print("mfcc.shape pad_width>11",mfcc.shape)
+	else: mfcc = np.pad(mfcc, pad_width=((0, 0), (0, pad_width)), mode='constant')
+	# print("mfcc.shape in wav2mfcc after padding:",mfcc.shape) #(20 ,73)
 	return mfcc
 
 #用Pyaudio錄製音頻
 def audio_record(out_file, rec_time):
-	global sr_set
-
-	CHUNK= 1024
+	CHUNK = 1024
 	FORMAT = pyaudio.paInt16 #16bit编码格式
 	CHANNELS = 2 #单声道
-	RATE = sr_set #16000采样频率
+	RATE = 16000 #16000采样频率
 	p = pyaudio.PyAudio()
 	# 创建音频流
 	stream = p.open(format=FORMAT, # 音频流wav格式
@@ -642,7 +638,7 @@ def audio_record(out_file, rec_time):
 	stream.stop_stream()
 	stream.close()
 	p.terminate()
-	
+
 	# 保存音频文件
 	with wave.open(out_file, 'wb') as wf:
 		wf.setnchannels(CHANNELS)
@@ -652,14 +648,12 @@ def audio_record(out_file, rec_time):
 
 # 把函式放到改寫到類的run方法中，便可以通過呼叫類方法，實現執行緒的終止
 class VoiceStoppableThread(threading.Thread):
-	global n_mfcc, max_pad_len
 	def __init__(self,daemon=None):
 		super(VoiceStoppableThread,self).__init__(daemon=daemon)
 		self.__is_running = True
 		self.daemon = daemon
 		self.func = ""
-		#讀取語音模型
-		self.model = load_model('./models/m1125_VGG16_mfcc60_RN_best.h5')
+		self.model = load_model('./models/best_hier.h5')
 	def terminate(self):
 		self.__is_running = False
 	def run(self):
@@ -669,26 +663,21 @@ class VoiceStoppableThread(threading.Thread):
 			if voice_on == 'on':
 				print("喚醒功能開啟...開始錄音")
 				#語音存檔路徑與檔名
-				audio_call_path = "./record_wav/call.wav"
+				audio_call_path = "./record_wav/calling.wav"
 				# 錄製語音指令 ，秒數
 				audio_record(audio_call_path, 2.5) 
 				print("開始喚醒語音識別...")
-				
 				#預測
 				mfcc = wav2mfcc(audio_call_path)  #這裡放上要判讀的語音檔
-				mfcc_reshaped = mfcc.reshape(1, n_mfcc, max_pad_len, 1)
-				# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']") # label 要針對訓練時的label來定
-				# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy', 'hey_julia.npy', 'hey_star.npy']") #vgg16 labels
-				label_list = ['mark_pen.npy', 'eraser.npy', 'call_func.npy', 'hey_julia.npy', 'hey_star.npy']
+				mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
+				label_list = ['mark_pen.npy', 'eraser.npy', 'call_func.npy', 'hey_julia.npy', 'hey_star.npy', 'others.npy']
 				label_idx = np.argmax(self.model.predict(mfcc_reshaped))
-				# print("predict=", label_list[label_idx]) # 印出最高機率項目
-				# print("prob=", self.model.predict(mfcc_reshaped))			# 印出個項目的機率
 				prob_list = self.model.predict(mfcc_reshaped)
-				# print(prob_list[0])
 				print("predict={} prob={}".format(label_list[label_idx], prob_list[0][label_idx]))
 
 				#喚醒程式
 				voice_pre = str(np.argmax(self.model.predict(mfcc_reshaped)))
+				print(voice_pre)
 				#當聽到 hey julia時
 				if voice_pre == "hey_julia":
 					#play julia.mp3
@@ -699,7 +688,7 @@ class VoiceStoppableThread(threading.Thread):
 					# audio_record(audio_func_path, 2.5)
 					# print("開始功能語音識別")
 					# mfcc = wav2mfcc('./func.wav')
-					# mfcc_reshaped = mfcc.reshape(1, n_mfcc, max_pad_len, 1)
+					# mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
 					# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']")
 					# print("predict=", np.argmax(model.predict(mfcc_reshaped)))
 					# self.func = str(np.argmax(model.predict(mfcc_reshaped)))
@@ -714,7 +703,7 @@ class VoiceStoppableThread(threading.Thread):
 					# audio_record(audio_func_path, 2.5)
 					# print("開始功能語音識別")
 					# mfcc = wav2mfcc('./func.wav')
-					# mfcc_reshaped = mfcc.reshape(1, n_mfcc, max_pad_len, 1)
+					# mfcc_reshaped = mfcc.reshape(1, 20, max_pad_len, 1)
 					# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']")
 					# print("predict=", np.argmax(model.predict(mfcc_reshaped)))
 					# self.func = str(np.argmax(model.predict(mfcc_reshaped)))
@@ -727,12 +716,11 @@ class VoiceStoppableThread(threading.Thread):
 				time.sleep(0.5) #每0.5秒判斷一次是否重新開啟麥克風
 
 
-
 if __name__ == '__main__':
-	# 執行 語音thread
-	voice_thread = VoiceStoppableThread()  # 創建一個可終止程序的語音thread
-	voice_thread.daemon = True  # thread True, 判定開啟
-	voice_thread.start()
+	#執行 語音thread
+	# voice_thread = VoiceStoppableThread() #創建一個可終止程序的語音thread
+	# voice_thread.daemon = True			  #thread True, 判定開啟
+	# voice_thread.start()
 
 	# voice_thread.terminate() #終止thread 用
 	# pid = os.getpid() #可以查process ID
@@ -752,17 +740,30 @@ if __name__ == '__main__':
 		if f_round:  # 判斷是不是第一次跑，是:把黑色畫布放大成跟鏡頭解析度一樣大
 			newblack = cv2.resize(newblack, CanvasSize, interpolation=cv2.INTER_AREA)
 			f_round = False
+			cover_pics = cv2.imread('./child_pic/'+pics[pic_change]+'.png')
 		smailblack1 = ScalingDisplacement(newblack, lost_pix, offset)  # 縮小畫布
+
+		if child :
+			print(child,sub_hand_text)
+			key = cv2.waitKey(1)
+			if key & 0xFF == 83 or key & 0xFF == ord('e'):
+				pic_change+= 1
+				cover_pics = cv2.imread('./child_pic/'+pics[pic_change]+'.png')
+			elif pic_change >= 5:
+				pic_change=0
+			smailblack1,pic_change,child = child_Mode(pic_change,smailblack1,cover_pics,sub_hand_text)  #呼叫child Mode
+			
 		frame = cv2.flip(frame, 1)  # 畫面左右翻轉，放回畫面frame
+		
 		blur = cv2.flip(blur, 1)
+		
 
 		imgRGB = cv2.cvtColor(blur, cv2.COLOR_BGR2RGB)  # 將影像通道從BGR轉成RGB
 
 		menu = func_window()  # 初始化功能版
 		colormain = func_color()
 		hands_Pose1, hands_LR = HandsIdentify(imgRGB)  # 副程式處理"手部座標"、"左右手順序"
-		main_MousePose, sub_MousePose = PointPprocessing(hands_Pose1, hands_LR, menu, Main_hand,
-														 colormain)  # 分別處理左右手座標之副程式
+		main_MousePose, sub_MousePose, sub_hand_text = PointPprocessing(hands_Pose1, hands_LR, menu, Main_hand,colormain)  # 分別處理左右手座標之副程式
 		# Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points,main_Pose, sub_Pose,main_Pose1, sub_Pose1)
 		main_MousePose = Mouse_Pos(main_MousePose)
 		sub_MousePose = Mouse_Pos(sub_MousePose)
