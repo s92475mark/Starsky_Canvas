@@ -22,7 +22,7 @@ voice_on = "on" # on/off
 newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 mpHand = mp.solutions.hands  # 抓手	001
 hands = mpHand.Hands()  # 001
-path = 1  # 本地端可以改成這個，用筆電的視訊鏡頭
+path = 0  # 本地端可以改成這個，用筆電的視訊鏡頭
 
 pTime = 0  # 起始時間
 f_round = True  # 第一次跑
@@ -120,7 +120,9 @@ def Hand_Text(finger_angle):  # 根據手指角度的串列內容，返回對應
 	elif f0 < 50 and f1 < 50 and f2 >= 50 and f3 >= 50 and f4 < 50:
 		return '6'  # disco
 	elif f0 < 50 and f1< 50 and f2 >=50 and f3 >=50 and f4>=50:
-		return '7' #child 
+		return '7' #child
+	elif f0 >= 50 and f1 < 50 and f2 < 50 and f3 < 50 and f4 >= 50:
+		return '3' #sunglass
 	else:
 		return ''
 
@@ -475,6 +477,7 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		newblack = np.full((frame.shape[0], frame.shape[1], 3), (0, 0, 0), np.uint8)   
 
 
+	# 若為繪畫模式, 右手拇指,食指,小拇指伸直時
 	elif Mode == 'Draw' and main_hand_text == '6':
 		# 起始座標 
 		ix, iy = 0,0
@@ -500,7 +503,7 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			# 子畫面寬/高縮放
 			subframe=cv2.resize(subframe,(subframe.shape[1]//10,subframe.shape[0]//10))
 			subw,subh=subframe.shape[:2]
-			#將子畫面放在指定位置，(x,y)是左上角的坐标
+			#將子畫面放在指定位置，(x,y)是左上角的坐標
 			if ix>frame.shape[1]-subw or iy>frame.shape[0]-subh:
 				ix, iy = 0,0
 			frame[iy:iy+subframe.shape[0],ix:ix+subframe.shape[1]] = subframe  
@@ -512,6 +515,97 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 				break
 			else:
 				return Mode
+
+
+	# 若為繪畫模式, 右手比三的時候
+	elif Mode == 'Draw' and main_hand_text == '3':
+		# 建立偵測方法
+		mp_face_detection = mp.solutions.face_detection
+		# 建立繪圖方法
+		mp_drawing = mp.solutions.drawing_utils
+
+		# cap = cv2.VideoCapture(0)
+
+		# 開始偵測人臉
+		with mp_face_detection.FaceDetection(
+			min_detection_confidence=0.5) as face_detection:
+
+			while cap.isOpened():
+				ret ,image = cap.read()
+				imgFront = cv2.imread("canvas.png", cv2.IMREAD_UNCHANGED)
+				s_h,s_w,_ = imgFront.shape
+
+				imageHeight,imageWidth,_ = image.shape
+				# 將BGR轉換成RGB, 並使用Mediapipe人臉偵測進行處理
+				results = face_detection.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+
+				# 繪製每張人臉的臉部偵測
+				if results.detections:
+					for detection in results.detections:
+						# 鼻子
+						normalizedLandmark = mp_face_detection.get_key_point(detection, mp_face_detection.FaceKeyPoint.NOSE_TIP)
+						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, imageWidth, imageHeight)
+						Nose_tip_x = pixelCoordinatesLandmark[0]    
+						Nose_tip_y = pixelCoordinatesLandmark[1]
+						# 左耳
+						normalizedLandmark = mp_face_detection.get_key_point(detection, mp_face_detection.FaceKeyPoint.LEFT_EAR_TRAGION)
+						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, imageWidth, imageHeight)
+						Left_Ear_x = pixelCoordinatesLandmark[0]      
+						Left_Ear_y = pixelCoordinatesLandmark[1]
+						# 右耳
+						normalizedLandmark = mp_face_detection.get_key_point(detection, mp_face_detection.FaceKeyPoint.RIGHT_EAR_TRAGION)
+						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, imageWidth, imageHeight)
+						Right_Ear_x = pixelCoordinatesLandmark[0]     
+						Right_Ear_y = pixelCoordinatesLandmark[1]
+						# 左眼
+						normalizedLandmark = mp_face_detection.get_key_point(detection, mp_face_detection.FaceKeyPoint.LEFT_EYE)
+						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, imageWidth, imageHeight)
+						Left_EYE_x = pixelCoordinatesLandmark[0]
+						Left_EYE_y = pixelCoordinatesLandmark[1]
+						# 右眼
+						normalizedLandmark = mp_face_detection.get_key_point(detection, mp_face_detection.FaceKeyPoint.RIGHT_EYE)
+						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, imageWidth, imageHeight)
+						Right_EYE_x = pixelCoordinatesLandmark[0]    
+						Right_EYE_y = pixelCoordinatesLandmark[1]
+
+						sunglass_width = Left_Ear_x-Right_Ear_x+60
+						sunglass_height = int((s_h/s_w)*sunglass_width)
+						
+						imgFront = cv2.resize(imgFront, (sunglass_width, sunglass_height), None, 0.3, 0.3)
+
+						hf, wf, cf = imgFront.shape
+						hb, wb, cb = image.shape
+						
+						#調整太陽眼鏡位置
+						y_adjust = int((sunglass_height/90)*90) 
+						x_adjust = int((sunglass_width/194)*100)
+
+						pos = [Nose_tip_x-x_adjust,Nose_tip_y-y_adjust]
+
+						hf, wf, cf = imgFront.shape
+						hb, wb, cb = image.shape
+						*_, mask = cv2.split(imgFront)
+						maskBGRA = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGRA)
+						maskBGR = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+						imgRGBA = cv2.bitwise_and(imgFront, maskBGRA)
+						imgRGB = cv2.cvtColor(imgRGBA, cv2.COLOR_BGRA2BGR)
+
+						imgMaskFull = np.zeros((hb, wb, cb), np.uint8)
+						imgMaskFull[pos[1]:hf + pos[1], pos[0]:wf + pos[0], :] = imgRGB
+						imgMaskFull2 = np.ones((hb, wb, cb), np.uint8) * 255
+						maskBGRInv = cv2.bitwise_not(maskBGR)
+						imgMaskFull2[pos[1]:hf + pos[1], pos[0]:wf + pos[0], :] = maskBGRInv
+
+						image = cv2.bitwise_and(image, imgMaskFull2)
+						image = cv2.bitwise_or(image, imgMaskFull)
+						#cv2.namedWindow("Sunglass Effect",cv2.WINDOW_NORMAL)
+				cv2.imshow('newblack1', image)
+				
+				if cv2.waitKey(1) & 0xFF == ord('q'):
+					break
+			
+				else:
+					return Mode
 
 
 	return Mode
