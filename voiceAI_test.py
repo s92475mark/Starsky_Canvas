@@ -13,6 +13,11 @@ count_short = 0
 n_mfcc = 60
 sr_set = 22050
 
+# 1.5second pad:65 
+# 2second pad:87
+# 2.5second pad:107
+# 3second pad: 129
+
 max_pad_len = 79
 def wav2mfcc(file_path, max_pad_len=max_pad_len):
     global count_long, count_short, n_mfcc, sr_set
@@ -38,7 +43,8 @@ def wav2mfcc(file_path, max_pad_len=max_pad_len):
     return mfcc
 
 ##########  這裡設定要測試的語音檔  ###########
-file_path = "./record_wav/star_0.wav"
+# file_path = "./record_wav/long_0.wav"
+file_path = "E:\\Users\\lwing\\coding projects\\wav_for_train\\record/3second_0.wav"
 
 ##########  設定語音模型  ######333
 model = load_model('./models/m1125_VGG16_mfcc60_RN_best.h5')
@@ -47,24 +53,21 @@ model = load_model('./models/m1125_VGG16_mfcc60_RN_best.h5')
 #預測
 mfcc = wav2mfcc(file_path)  
 mfcc_reshaped = mfcc.reshape(1, n_mfcc, max_pad_len, 1)
-# print("labels= ['mark_pen.npy', 'eraser.npy', 'call_func.npy']")
-# print("predict=", np.argmax(model.predict(mfcc_reshaped)))
-# print("predict=", model.predict(mfcc_reshaped))
 
-label_list = ['mark_pen.npy', 'eraser.npy', 'call_func.npy', 'hey_julia.npy', 'hey_star.npy']
-label_idx = np.argmax(model.predict(mfcc_reshaped))
-prob_list = model.predict(mfcc_reshaped)
-# print(label_list)
-print("所有機率: \n")
-c = 0
-for i in prob_list[0]:
-    print(label_list[c],format(i, '.3f'))
-    c+=1
-print("\ninput = {}\npredict= {}  \nprob= {}".format(file_path,label_list[label_idx], prob_list[0][label_idx]))
 
-#librosa.feature.inverse.mfcc_to_audio(mfcc, *, n_mels=128, dct_type=2, norm='ortho', ref=1.0, lifter=0, **kwargs)
+# label_list = ['mark_pen.npy', 'eraser.npy', 'call_func.npy', 'hey_julia.npy', 'hey_star.npy']
+# label_idx = np.argmax(model.predict(mfcc_reshaped))
+# print("label_idx type", type(label_idx)) #int64
+# prob_list = model.predict(mfcc_reshaped)
+# # print(label_list)
+# print("所有機率: \n")
+# c = 0
+# for i in prob_list[0]:
+#     print(label_list[c],format(i, '.3f'))
+#     c+=1
+# print("\ninput = {}\npredict= {}  \nprob= {}".format(file_path,label_list[label_idx], prob_list[0][label_idx]))
 
-audio_ndarray = librosa.feature.inverse.mfcc_to_audio(mfcc, n_mels=128, dct_type=2, norm='ortho', ref=1.0, lifter=0)
-print(audio_ndarray.shape)
-# data, samplerate = sf.read('existing_file.wav')
-sf.write('mfcc_audio.wav',audio_ndarray, 16000)
+
+# audio_ndarray = librosa.feature.inverse.mfcc_to_audio(mfcc, n_mels=128, dct_type=2, norm='ortho', ref=1.0, lifter=0)
+# print(audio_ndarray.shape)
+# sf.write('mfcc_audio.wav',audio_ndarray, 16000)

@@ -36,12 +36,12 @@ def audio_record(out_file, rec_time):
 
 ### 設定 ###
 ########################  檔名，錄製次數，錄音秒數，資料夾路徑  ##################################
-name = "star"  #檔案名稱
+name = "3second"  #檔案名稱
 count = 1        #錄音次數
-second = 2.5        #錄音秒數
+second = 3      #錄音秒數
 #資料夾路徑
-# folder_path = f"E:\\Users\\lwing\\coding projects\\wav_for_train\\record\\" #我的批次路徑
-folder_path = ".\\record_wav\\"   #我的單一路徑
+folder_path = f"E:\\Users\\lwing\\coding projects\\wav_for_train\\record\\" #我的批次路徑
+# folder_path = ".\\record_wav\\"   #我的單一路徑
 #####################################################################
 
 #資料夾內檔案
