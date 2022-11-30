@@ -525,13 +525,15 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		mp_drawing = mp.solutions.drawing_utils
 
 		# cap = cv2.VideoCapture(0)
+		# pTime = 0
+		# cTime = 0
 
 		# 開始偵測人臉
 		with mp_face_detection.FaceDetection(
-			min_detection_confidence=0.5) as face_detection:
+			min_detection_confidence=0.7) as face_detection:
 
 			while cap.isOpened():
-				ret ,image = cap.read()
+				success, image = cap.read()
 				imgFront = cv2.imread("canvas.png", cv2.IMREAD_UNCHANGED)
 				s_h,s_w,_ = imgFront.shape
 
@@ -599,11 +601,24 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 						image = cv2.bitwise_and(image, imgMaskFull2)
 						image = cv2.bitwise_or(image, imgMaskFull)
 						#cv2.namedWindow("Sunglass Effect",cv2.WINDOW_NORMAL)
+
+				def get_video_info(video_cap):
+					numFrames = int(video_cap.get(cv2.CAP_PROP_FRAME_COUNT))
+					fps = int(video_cap.get(cv2.CAP_PROP_FPS))
+					return numFrames, fps
+
+				# cTime = time.time()
+				# fps = 1 / (cTime - pTime)
+				# pTime = cTime
+
+				# 顯示FPS
+				cv2.putText(image, "FPS: {}".format(fps), (10,70), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 1, (255,193,27), 1, cv2.LINE_AA)
+				# cv2.putText(image, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 255), 2, cv2.LINE_AA)
 				cv2.imshow('newblack1', image)
 				
 				if cv2.waitKey(1) & 0xFF == ord('q'):
 					break
-			
+
 				else:
 					return Mode
 
