@@ -1,40 +1,37 @@
 import csv
 import math
-# play wav用  pip install playsound
 import os
 import threading
 import time
 import wave
 import cv2
 
-#語音套件
+# play wav用  pip install playsound==1.2.2
+# 語音套件
 import librosa
-from keras.models import load_model
-import playsound #play wav用  pip install playsound
-import os
-import threading
-import wave
+import mediapipe as mp
+import numpy as np
 import pyaudio
-max_pad_len = 107
-max_pad_len2 = 87
-voice_on = "on" # on/off
-sr_set = 22050
-n_mfcc= 60
-voice_pre_func = "" # ['mark_pen.npy', 'eraser.npy', 'call_func.npy'] "0", "1", "2"
-
+import requests
+from keras.models import load_model
+from playsound import playsound							#pip install playsound==1.2.2
+from pydub import AudioSegment            # 載入 pydub 的 AudioSegment 模組
+from pydub.playback import play           # 載入 pydub.playback 的 play 模組
+#語音參數
 # 1.5second pad:65 
 # 2second pad:87
 # 2.5second pad:107
 # 3second pad: 129
-
-
+max_pad_len = 107
+max_pad_len2 = 87
+voice_on = "on" # on/off 語音功能開或關
 sr_set = 22050
 n_mfcc= 60
+voice_pre_func = "" # ['mark_pen.npy', 'eraser.npy', 'call_func.npy'] "0", "1", "2"
+voice_check_func ="" # "eraser"畫面清洗 "menu"開啟功能版 "draw" 轉回繪畫模式
+
 count_long = 0
 count_short = 0
-
-max_pad_len = 79
-voice_on = "on"  # on/off
 
 # 值， 址id
 newblack = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
@@ -282,9 +279,10 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,
 					main_Pose1, sub_Pose1, menu, frame, colormain):
 	# 主手執行作畫
-	global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard, time_standard_long, time_standard, sub_Pose2, main_Pose2, distance, newblack, token
+	global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard, time_standard_long, time_standard, sub_Pose2, main_Pose2, distance, newblack, token, voice_check_func,voice_on
 	# print(Mode)
 	# print(sub_hand_text,Mode,mod)
+	# print("voice function test", voice_check_func)
 	if Mode == 'Draw' and main_hand_text == '1':
 
 		# 轉為"紅色鼠標"於監視器上
@@ -305,7 +303,10 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			dots = [(dots[dl - 2]), (dots[dl - 1])]
 	# print(dots)
 	# 若副手伸出食中指 : 1. 伸出"副手食中指"，則停止作畫功能 -> 進入功能選擇階段 -> 直到"副手全張開" 則關閉功能選擇階段， 可以繼續作畫
-	elif sub_hand_text == '1' and mod == 1 and Mode != 'zoon_move':
+	elif sub_hand_text == '1' and mod == 1 and Mode != 'zoon_move' or voice_check_func == "menu":
+		# print("function show up menu, voice_check_func = ", voice_check_func)
+		voice_check_func ="" # reset voice check func
+
 		Mode = 'Func'  # 停止主手迴圈，進入副手迴圈
 		fx = int(sub_finger_points[8][0] / 2)  # 如果手勢為 1，記錄食指末端的座標
 		fy = int(sub_finger_points[8][1])
@@ -450,8 +451,11 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 	# print(fx, fy)
 	# print(Mode)
 	# print(main_hand_text)
+	
 	# 副手全張：關閉功能版，轉回繪畫模式
-	elif sub_hand_text == '2' and Mode == 'Func' and mod == 1:
+	elif sub_hand_text == '2' and Mode == 'Func' and mod == 1 or voice_check_func == "draw":
+		# print("關閉功能版，轉回繪圖模式。voice_check_func=", voice_check_func)
+		voice_check_func = "" # 重設語音功能
 		Mode = 'Draw'
 		try:
 			cv2.destroyWindow("menu")
@@ -484,8 +488,10 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		cv2.rectangle(colormain, (70, 420), (90, 460), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
 		cv2.imshow("menu", colormain)
 
-
-	elif Mode == 'Draw' and main_hand_text == '5' and sub_hand_text == '5':
+	# 繪圖模式下，雙手比五：清洗畫面
+	elif Mode == 'Draw' and main_hand_text == '5' and sub_hand_text == '5' or voice_check_func == "eraser":
+		# print("清除畫面, voice_check_func = ",voice_check_func)
+		voice_check_func =""
 		newblack = np.full((frame.shape[0], frame.shape[1], 3), (0, 0, 0), np.uint8)
 
 
@@ -527,6 +533,27 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 				break
 			else:
 				return Mode
+	#語音功能開關
+	# elif Mode == "Func" and sub_hand_text =="1":
+	# 	if 10<=int(sub_Pose1[0])<=40 and 370<=int(sub_Pose1[1])<=400 and voice_on == "on":
+	# 		voice_on = "off"
+	# 		Mode = "Draw"
+	# 		print("語音辨識功能關閉")
+	# 		try:
+	# 			cv2.destroyWindow("menu")
+	# 		except:
+	# 			pass
+	# 	elif 10<=int(sub_Pose1[0])<=40 and 370<=int(sub_Pose1[1])<=400 and voice_on == "off":
+	# 		voice_on = "on"
+	# 		Mode = "Draw"
+	# 		print("語音辨識功能開啟")
+	# 		try:
+	# 			cv2.destroyWindow("menu")
+	# 		except:
+	# 			pass
+			
+		cv2.rectangle(menu, (10, 370), (40, 400), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+	cv2.putText(menu, 'Voice on/off', (50, 405), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 
 	return Mode
 
@@ -558,6 +585,9 @@ def func_window():  ###準備功能視窗 -> menu
 	cv2.putText(menu, 'Save and line', (50, 265), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 310), (40, 340), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
 	cv2.putText(menu, 'Exit', (50, 345), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	cv2.rectangle(menu, (10, 370), (40, 400), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形 語音開關按鈕
+	cv2.putText(menu, 'Voice on/off', (50, 405), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA) 
+
 	return menu
 
 
@@ -604,6 +634,28 @@ def readconfig():
 		Main_hand = str(dict_from_csv.get("Main_hand"))
 		token = str(dict_from_csv.get("token"))
 
+def wav2mfcc2(file_path):
+    global n_mfcc, sr_set, max_pad_len2
+    wave, sr = librosa.load(file_path, mono=True, sr=None)
+	# print(wave.shape) #(112014,)
+    # wave = wave[::3] 
+    # print("wave[::3].shape:",wave.shape) #(37338,) (除3 ??)
+    mfcc = librosa.feature.mfcc(wave, n_mfcc=n_mfcc, sr=sr_set) #SR 採樣頻率
+    # print("mfcc.shape in wav2mfcc before padding:",mfcc.shape) #(20 ,73)
+    pad_width = max_pad_len2 - mfcc.shape[1] # 設定的長度-抓到音訊的長度=需要補足的長度
+    # pad_width =  mfcc.shape[1] - max_pad_len  #差距73-11 = 62
+    # 若抓到的音訊長度大於設定長度，取全部資訊
+    if pad_width <0:
+      mfcc = mfcc[:,0:max_pad_len2]
+      print("mfcc.shape 抓到的音訊大於設定長度",mfcc.shape)
+    
+    # 若抓到的音訊長度小於設定長度，補足0
+    else:
+      mfcc = np.pad(mfcc, pad_width=((0, 0), (0, pad_width)), mode='constant')
+      print("mfcc.shape in wav2mfcc after padding:",mfcc.shape) 
+    
+    # print("count long and short:",count_long, " ",count_short)
+    return mfcc
 
 def wav2mfcc(file_path):
     global n_mfcc, sr_set, max_pad_len
@@ -662,24 +714,33 @@ def audio_record(out_file, rec_time):
         wf.setframerate(RATE)
         wf.writeframes(b''.join(frames))
 
-def voice_yn():
-	global voice_pre_func, Mode
-	#進入語音錄製 與 AI 判讀一次， 輸出 功能項目
-	print("功能語音開啟...開始錄音")
-	audio_func_path = "./record_wav/yn.wav"
-	audio_record(audio_func_path, 2)
-	mfcc = wav2mfcc(audio_func_path)
-	mfcc_reshaped = mfcc.reshape(1, n_mfcc, max_pad_len, 1)
+# def voice_yn(yes_no):
+# 	global voice_pre_func, Mode, max_pad_len2
+# 	#進入語音錄製 與 AI 判讀一次， 輸出 功能項目
+# 	# yn = AudioSegment.from_wav("") # 播放確認語音
+# 	#play(yn)
+# 	# time.sleep()
+# 	print("確認語音開啟...開始錄音")
+# 	audio_func_path = "./record_wav/yn.wav"
+# 	audio_record(audio_func_path, 2)
+# 	mfcc = wav2mfcc2(audio_func_path)
+# 	mfcc_reshaped = mfcc.reshape(1, n_mfcc, max_pad_len2, 1)
 
-	label_list_yn = ['yes', 'no', 'others'] # 答案標籤集list 0,1,2
-	label_idx_yn = np.argmax(voice_thread.model_yn.predict(mfcc_reshaped))  # 預測的答案index
-	prob_list_yn = voice_thread.model_yn.predict(mfcc_reshaped) # 個個答案的機率list
+# 	label_list_yn = ['yes', 'no', 'others'] # 答案標籤集list 0,1,2
+# 	label_idx_yn = np.argmax(voice_thread.model_yn.predict(mfcc_reshaped))  # 預測的答案index
+# 	prob_list_yn = voice_thread.model_yn.predict(mfcc_reshaped) # 個個答案的機率list
+	
+# 	print("predict={} prob={}".format(label_list_yn[label_idx_yn], prob_list_yn[0][label_idx_yn])) #印出 預測的答案 與 機率
+# 	voice_pre_func = str(label_idx_yn) # ['yes', 'no', 'others'] "0", "1", "2"
 
-	print("predict={} prob={}".format(label_list_yn[label_idx_yn], prob_list_yn[0][label_idx_yn])) #印出 預測的答案 與 機率
-	voice_pre_func = str(label_idx_yn) # ['yes', 'no', 'others'] "0", "1", "2"
+# 	if label_idx_yn == "0": # 若判讀為yes
+# 		yes_no = "yes"
+# 	elif label_idx_yn == "1" or "2": #若判讀為no 或 others
+# 		yes_no = "no"
+# 	return yes_no
 
 def voice_func():
-	global voice_pre_func, Mode
+	global voice_pre_func, Mode, voice_check_func
 	#進入語音錄製 與 AI 判讀一次， 輸出 功能項目
 	print("功能語音開啟...開始錄音")
 	audio_func_path = "./record_wav/func.wav"
@@ -696,27 +757,55 @@ def voice_func():
 	voice_pre_func = str(label_idx_func) # ['mark_pen.npy', 'eraser.npy', 'call_func.npy'] "0", "1", "2"
 	yes_no =""
 	if voice_pre_func == "0": # 判斷為 麥克筆
-		#play sound: 是否開啟麥克筆？
-		#time.sleep() 播放的語音長度
-		# yes_no = voice_yn() # 開啟 是否 的語音判讀
-		Mode = "Draw"
-		print("轉為繪畫模式")
-		# pass
+		playsound("./Respond/re/pens.mp3")
+		voice_check_func = "draw"
+		return voice_check_func
+		# playsound("./Respond/re/pens.mp3") #playsound是否開啟麥克筆？
+		# time.sleep(2) #播放的語音長度
+		# playsound("./Respond/re/cat1b.mp3") # 喵?
+		# time.sleep(1) #播放的語音長度
+		# yes_no = voice_yn(yes_no) # 開啟 是否 的語音判讀
+		# if yes_no == "yes":
+		# 	playsound("./Respond/re/pens.mp3")
+		# 	Mode = "Draw"
+		# 	print("轉為繪畫模式")
+		# elif yes_no == "no":
+		# 	playsound("./Respond/re/crow1.mp3") # 播放烏鴉叫聲
+
 	elif voice_pre_func == "1": # 判斷為 橡皮擦
-		#play sound: 是否開啟橡皮擦？
-		#time.sleep() 播放的語音長度
-		# yes_no = voice_yn() # 開啟 是否 的語音判讀
-		# Mode = ''
-		print("轉為橡皮擦模式")
-		# pass
-	else:						#判斷為 功能版
-		#play sound: 是否開啟功能版
-		#time.sleep() 播放的語音長度
-		# yes_no = voice_yn() # 開啟 是否 的語音判讀
-		print("轉為功能版模式")
-		# pass
-	
-	# pass
+		playsound("./Respond/re/tissue.mp3")
+		voice_check_func = 'eraser'
+		# print("轉為橡皮擦模式")
+		return voice_check_func
+		# playsound("./Respond/re/tissue.mp3") # 是否開啟橡皮擦？
+		# time.sleep(0.5) #播放的語音長度
+		# playsound("./Respond/re/cat1b.mp3") # 喵?
+		# time.sleep(1) #播放的語音長度
+		# yes_no = voice_yn(yes_no) # 開啟 是否 的語音判讀
+		# if yes_no == "yes":
+		# 	playsound("./Respond/re/tissue.mp3")
+		# 	voice_check_func = 'eraser'
+		# 	print("轉為橡皮擦模式")
+		# 	return voice_check_func
+		# elif yes_no == "no":
+		# 	playsound("./Respond/re/crow1.mp3") # 播放烏鴉叫聲
+	else:
+		playsound("./Respond/re/pulling_back_a_chair.mp3") # 再撥放一次功能語音
+		voice_check_func = "menu"
+		# print("轉為功能版模式")
+		return voice_check_func						#判斷為 功能版
+		# playsound("./Respond/re/pulling_back_a_chair.mp3") # 是否開啟功能版
+		# time.sleep(1) #播放的語音長度
+		# playsound("./Respond/re/cat1b.mp3") # 喵?
+		# time.sleep(1) #播放的語音長度
+		# yes_no = voice_yn(yes_no) # 開啟 是否 的語音判讀
+		# if yes_no == "yes":
+		# 	playsound("./Respond/re/pulling_back_a_chair.mp3") # 再撥放一次功能語音
+		# 	voice_check_func = "menu"
+		# 	print("轉為功能版模式")
+		# 	return voice_check_func
+		# elif yes_no == "no":
+		# 	playsound("./Respond/re/crow1.mp3") # 播放烏鴉叫聲
 
 class VoiceStoppableThread(threading.Thread):
 	global n_mfcc, max_pad_len, voice_pre_func
@@ -755,23 +844,23 @@ class VoiceStoppableThread(threading.Thread):
 				voice_pre = str(label_idx)
 				#當聽到 hey julia時
 				if voice_pre == "0":
-					# play julia.mp3
-					time.sleep(1)
-					voice_func()  # 錄製語音，並回傳判斷道的功能
-					time.sleep(0.1)
-					voice_pre_func = "" # reset voice func
+					playsound("./Respond/re/cat1a.mp3")
+					time.sleep(0.7) #等待播放的語音長度(聽完語音)
+					voice_func()  # 錄製語音，執行功能
+					time.sleep(2) # 功能等候兩秒，讓程式運作
 					# pass
 				# 當聽到hey 星空時
-				elif voice_pre == "1":
-					playsound.playsound('./meowx2.wav') # meow meow~
+				elif voice_pre == "2":
+					playsound('./meowx2.wav') # meow meow~
 					time.sleep(1)
-					voice_func()  # 錄製語音，並回傳判斷道的功能
-					time.sleep(0.1)
-					voice_pre_func = "" # reset voice func
+					voice_func()  # 錄製語音，執行功能
+					time.sleep(2) # 功能等候兩秒，讓程式運作
 					# pass
 				else:
 					pass
 				
+				voice_pre_func = "" # reset voice pre func
+
 				time.sleep(0.1) #每0.1秒重新跑一次thread
 			elif voice_on == 'off':
 				time.sleep(0.5) #每0.5秒判斷一次是否重新開啟麥克風
