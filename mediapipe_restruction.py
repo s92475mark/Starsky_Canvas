@@ -47,6 +47,7 @@ offset = [0, 0]  # 偏移(x為正往右偏移，y為正往下偏移)
 dots = []
 Mode = 'Draw'  # 'Draw'為作畫模式/ 'Func' 為功能板模式
 mod = 1
+pic_change = 0
 Hand_Mark_blue = (255, 0, 0)  # 顏色藍色
 Hand_Mark_red = (0, 0, 255)  # 顏色紅色
 colorx = 255
@@ -65,10 +66,12 @@ handLmsStyle = mpDraw.DrawingSpec(color=(0, 255, 0), thickness=5)  # 設定點�
 handConStyle = mpDraw.DrawingSpec(color=(255, 255, 255), thickness=2)  # 設定線的參數
 token = ' '
 thickness = 5
-
+child = False
+pics = ['pig','smile','money','heart','plans']
+sub_hand_text = '-1'
 
 def graphics_menu():
-	graphics_menu = np.full((int(frame.shape[0]), int(frame.shape[1] / 4), 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
+	graphics_menu = np.full((int(frame.shape[0]), int(frame.shape[1] / 4), 3), (0, 0, 0), np.uint8)  # 產生視訊畫面大小的黑色的圖
 	cv2.rectangle(graphics_menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
 	cv2.putText(graphics_menu, "square", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(graphics_menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
@@ -84,6 +87,7 @@ def Mouse_Pos(Pos):  # 轉換成鼠標層座標
 	# main_MousePose = (int((main_MousePose[0] - offset[0]) / lost_pix), int((main_MousePose[1] - offset[1]) / lost_pix))
 	# sub_MousePose = (int((sub_MousePose[0] - offset[0]) / lost_pix), int((sub_MousePose[1] - offset[1]) / lost_pix))
 	return Pos
+
 
 
 def Mouse(Canvas, main_MousePose, sub_MousePose, mod):
@@ -130,6 +134,10 @@ def Hand_Text(finger_angle):  # 根據手指角度的串列內容，返回對應
 		return '4'  # 比讚
 	elif f0 < 50 and f1 < 50 and f2 >= 50 and f3 >= 50 and f4 < 50:
 		return '6'  # disco
+	elif f0 < 50 and f1< 50 and f2 >=50 and f3 >=50 and f4>=50:
+		return '7' #child
+	elif f0 >= 50 and f1 < 50 and f2 < 50 and f3 < 50 and f4 >= 50:
+		return '3' #sunglass
 	else:
 		return ''
 
@@ -253,8 +261,6 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 			sub_Pose = (hands_Pose[hands_LR.index(hands_LR[i])])  # 當前抓取到的手的全部座標
 			sub_Pose1 = [int(sub_Pose.landmark[8].x * frame.shape[1]),
 						 int(sub_Pose.landmark[8].y * frame.shape[0])]  # 當前抓取到的手的食指座標
-			# print("1111",sub_Pose1)
-			# print("shape1",frame.shape[1])
 			# 副手鼠標顯示在監視器上
 			sub_mouse_pos = [int(sub_Pose.landmark[8].x * frame.shape[1]),
 							 int(sub_Pose.landmark[8].y * frame.shape[0])]  # 副手食指位置給鼠標用
@@ -273,24 +279,19 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 		Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,
 						main_Pose1, sub_Pose1, menu, frame, colormain)
 
-	return main_mouse_pos, sub_mouse_pos
+	return main_mouse_pos, sub_mouse_pos, sub_hand_text
 
 
-def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,
-					main_Pose1, sub_Pose1, menu, frame, colormain):
+def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,main_Pose1, sub_Pose1, menu, frame, colormain):
 	# 主手執行作畫
-	global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard, time_standard_long, time_standard, sub_Pose2, main_Pose2, distance, newblack, token, voice_check_func,voice_on
-	# print(Mode)
-	# print(sub_hand_text,Mode,mod)
-	# print("voice function test", voice_check_func)
-	if Mode == 'Draw' and main_hand_text == '1':
+	global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard, time_standard_long, time_standard, sub_Pose2, main_Pose2, distance, newblack, token, pic_change, child, voice_check_func,voice_on
 
+	if Mode == 'Draw' and main_hand_text == '1'and sub_hand_text!='7':
 		# 轉為"紅色鼠標"於監視器上
 		frame = cv2.circle(frame, main_Pose1, 10, Hand_Mark_red, -1)  # 鼠標藍色 顯示於 監視器上
 		fx = int(main_finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
 		fy = int(main_finger_points[8][1])
 		dots.append([fx, fy])  # 記錄食指座標
-		# print(dots)
 		dl = len(dots)
 		if dl > 1:
 			dx1 = dots[dl - 2][0]
@@ -298,9 +299,13 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 			dx2 = dots[dl - 1][0]
 			dy2 = dots[dl - 1][1]  # 這一刻的食指xy座標
 			cv2.line(newblack, (dx1, dy1), (dx2, dy2), color, 5)  # 取兩個時間差的點畫線，在黑色畫布上
-		# print(dots)
 		if dl >= 100:  ###當dots累積超過50組座標，將上上一刻與上衣刻的座標記錄起來，並刷新整組座標紀錄
 			dots = [(dots[dl - 2]), (dots[dl - 1])]
+	
+		elif Mode == 'Draw' and sub_hand_text == '7':
+			child = True
+		# print('xxxxinxxxx')
+	
 	# print(dots)
 	# 若副手伸出食中指 : 1. 伸出"副手食中指"，則停止作畫功能 -> 進入功能選擇階段 -> 直到"副手全張開" 則關閉功能選擇階段， 可以繼續作畫
 	elif sub_hand_text == '1' and mod == 1 and Mode != 'zoon_move' or voice_check_func == "menu":
@@ -320,9 +325,16 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		elif 130 <= fy <= 160 and 10 <= fx <= 40:
 			mod = 'graphics'
 		elif 190 <= fy <= 220 and 10 <= fx <= 40:
-			pass
+			child = True
+			Mode = "Draw"
+			mod = 1
+			try:
+				cv2.destroyWindow("menu")
+			except:
+				pass
+
 		elif 250 <= fy <= 280 and 10 <= fx <= 40:
-			cv2.imwrite('./test.png', newblack)
+			cv2.imwrite('./test.png',newblack)
 			sendLineNotify(token)
 		elif 310 <= fy <= 340 and 10 <= fx <= 40:
 			exit()
@@ -533,6 +545,110 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 				break
 			else:
 				return Mode
+	# 若為繪畫模式, 右手比三的時候
+	elif Mode == 'Draw' and main_hand_text == '3':
+		# 建立偵測方法
+		mp_face_detection = mp.solutions.face_detection
+		# 建立繪圖方法
+		mp_drawing = mp.solutions.drawing_utils
+
+		# cap = cv2.VideoCapture(0)
+		# pTime = 0
+		# cTime = 0
+
+		# 開始偵測人臉
+		with mp_face_detection.FaceDetection(
+			min_detection_confidence=0.7) as face_detection:
+
+			while cap.isOpened():
+				success, image = cap.read()
+				imgFront = cv2.imread("canvas.png", cv2.IMREAD_UNCHANGED)
+				s_h,s_w,_ = imgFront.shape
+
+				imageHeight,imageWidth,_ = image.shape
+				# 將BGR轉換成RGB, 並使用Mediapipe人臉偵測進行處理
+				results = face_detection.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+
+				# 繪製每張人臉的臉部偵測
+				if results.detections:
+					for detection in results.detections:
+						# 鼻子
+						normalizedLandmark = mp_face_detection.get_key_point(detection, mp_face_detection.FaceKeyPoint.NOSE_TIP)
+						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, imageWidth, imageHeight)
+						Nose_tip_x = pixelCoordinatesLandmark[0]    
+						Nose_tip_y = pixelCoordinatesLandmark[1]
+						# 左耳
+						normalizedLandmark = mp_face_detection.get_key_point(detection, mp_face_detection.FaceKeyPoint.LEFT_EAR_TRAGION)
+						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, imageWidth, imageHeight)
+						Left_Ear_x = pixelCoordinatesLandmark[0]      
+						Left_Ear_y = pixelCoordinatesLandmark[1]
+						# 右耳
+						normalizedLandmark = mp_face_detection.get_key_point(detection, mp_face_detection.FaceKeyPoint.RIGHT_EAR_TRAGION)
+						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, imageWidth, imageHeight)
+						Right_Ear_x = pixelCoordinatesLandmark[0]     
+						Right_Ear_y = pixelCoordinatesLandmark[1]
+						# 左眼
+						normalizedLandmark = mp_face_detection.get_key_point(detection, mp_face_detection.FaceKeyPoint.LEFT_EYE)
+						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, imageWidth, imageHeight)
+						Left_EYE_x = pixelCoordinatesLandmark[0]
+						Left_EYE_y = pixelCoordinatesLandmark[1]
+						# 右眼
+						normalizedLandmark = mp_face_detection.get_key_point(detection, mp_face_detection.FaceKeyPoint.RIGHT_EYE)
+						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x, normalizedLandmark.y, imageWidth, imageHeight)
+						Right_EYE_x = pixelCoordinatesLandmark[0]    
+						Right_EYE_y = pixelCoordinatesLandmark[1]
+
+						sunglass_width = Left_Ear_x-Right_Ear_x+60
+						sunglass_height = int((s_h/s_w)*sunglass_width)
+						
+						imgFront = cv2.resize(imgFront, (sunglass_width, sunglass_height), None, 0.3, 0.3)
+
+						hf, wf, cf = imgFront.shape
+						hb, wb, cb = image.shape
+						
+						#調整太陽眼鏡位置
+						y_adjust = int((sunglass_height/90)*90) 
+						x_adjust = int((sunglass_width/194)*100)
+
+						pos = [Nose_tip_x-x_adjust,Nose_tip_y-y_adjust]
+
+						hf, wf, cf = imgFront.shape
+						hb, wb, cb = image.shape
+						*_, mask = cv2.split(imgFront)
+						maskBGRA = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGRA)
+						maskBGR = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+						imgRGBA = cv2.bitwise_and(imgFront, maskBGRA)
+						imgRGB = cv2.cvtColor(imgRGBA, cv2.COLOR_BGRA2BGR)
+
+						imgMaskFull = np.zeros((hb, wb, cb), np.uint8)
+						imgMaskFull[pos[1]:hf + pos[1], pos[0]:wf + pos[0], :] = imgRGB
+						imgMaskFull2 = np.ones((hb, wb, cb), np.uint8) * 255
+						maskBGRInv = cv2.bitwise_not(maskBGR)
+						imgMaskFull2[pos[1]:hf + pos[1], pos[0]:wf + pos[0], :] = maskBGRInv
+
+						image = cv2.bitwise_and(image, imgMaskFull2)
+						image = cv2.bitwise_or(image, imgMaskFull)
+						#cv2.namedWindow("Sunglass Effect",cv2.WINDOW_NORMAL)
+
+				def get_video_info(video_cap):
+					numFrames = int(video_cap.get(cv2.CAP_PROP_FRAME_COUNT))
+					fps = int(video_cap.get(cv2.CAP_PROP_FPS))
+					return numFrames, fps
+
+				# cTime = time.time()
+				# fps = 1 / (cTime - pTime)
+				# pTime = cTime
+
+				# 顯示FPS
+				cv2.putText(image, "FPS: {}".format(fps), (10,70), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 1, (255,193,27), 1, cv2.LINE_AA)
+				# cv2.putText(image, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 255), 2, cv2.LINE_AA)
+				cv2.imshow('newblack1', image)
+				
+				if cv2.waitKey(1) & 0xFF == ord('q'):
+					break
+
+				else:
+					return Mode
 	#語音功能開關
 	# elif Mode == "Func" and sub_hand_text =="1":
 	# 	if 10<=int(sub_Pose1[0])<=40 and 370<=int(sub_Pose1[1])<=400 and voice_on == "on":
@@ -621,14 +737,12 @@ def sendLineNotify(token):
 	image = open('./test.png', 'rb')
 	imageFile = {'imageFile': image}
 	data = requests.post(url, headers=headers, data=data, files=imageFile)
-
-
-# data = requests.post(url, headers=headers, files=imageFile)
+	# data = requests.post(url, headers=headers, files=imageFile)
 def readconfig():
-	global path, lost_pix, Main_hand, token
+	global path,lost_pix,Main_hand,token
 	with open('./config.csv', mode='r') as inp:
 		reader = csv.reader(inp)
-		dict_from_csv = {rows[0]: rows[1] for rows in reader}
+		dict_from_csv = {rows[0]:rows[1] for rows in reader}
 		path = int(dict_from_csv.get("path"))
 		lost_pix = int(dict_from_csv.get("lost_pix"))
 		Main_hand = str(dict_from_csv.get("Main_hand"))
@@ -866,7 +980,6 @@ class VoiceStoppableThread(threading.Thread):
 				time.sleep(0.5) #每0.5秒判斷一次是否重新開啟麥克風
 
 
-
 if __name__ == '__main__':
 	# 把函式放到改寫到類的run方法中，便可以通過呼叫類方法，實現執行緒的終止
 	#執行 語音thread
@@ -895,7 +1008,24 @@ if __name__ == '__main__':
 		if f_round:  # 判斷是不是第一次跑，是:把黑色畫布放大成跟鏡頭解析度一樣大
 			newblack = cv2.resize(newblack, CanvasSize, interpolation=cv2.INTER_AREA)
 			f_round = False
+			cover_pics = cv2.imread('./child_pic/'+pics[pic_change]+'.png')
 		smailblack1 = ScalingDisplacement(newblack, lost_pix, offset)  # 縮小畫布
+
+		if child :
+			# print(child,sub_hand_text)
+			key = cv2.waitKey(1)
+			print(pic_change)
+			if pic_change >= 5:
+				# print("2345")
+				pic_change=0
+
+
+			elif key & 0xFF == 83 or key & 0xFF == ord('e'):
+				cover_pics = cv2.imread('./child_pic/'+pics[pic_change]+'.png')
+				pic_change+= 1
+			child_black = np.full((int(frame.shape[0]), int(frame.shape[1]), 3), (0, 0, 0), np.uint8)  # 產生黑色的圖
+			child_black,pic_change,child,smailblack1 = child_Mode(pic_change,child_black,cover_pics,sub_hand_text,smailblack1)  #呼叫child Mode
+			
 		frame = cv2.flip(frame, 1)  # 畫面左右翻轉，放回畫面frame
 		blur = cv2.flip(blur, 1)
 
@@ -904,8 +1034,7 @@ if __name__ == '__main__':
 		menu = func_window()  # 初始化功能版
 		colormain = func_color()
 		hands_Pose1, hands_LR = HandsIdentify(imgRGB)  # 副程式處理"手部座標"、"左右手順序"
-		main_MousePose, sub_MousePose = PointPprocessing(hands_Pose1, hands_LR, menu, Main_hand,
-														 colormain)  # 分別處理左右手座標之副程式
+		main_MousePose, sub_MousePose, sub_hand_text = PointPprocessing(hands_Pose1, hands_LR, menu, Main_hand,colormain)  # 分別處理左右手座標之副程式
 		# Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points,main_Pose, sub_Pose,main_Pose1, sub_Pose1)
 		main_MousePose = Mouse_Pos(main_MousePose)
 		sub_MousePose = Mouse_Pos(sub_MousePose)
