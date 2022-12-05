@@ -262,9 +262,15 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 			sub_hand_text = Hand_Text(sub_finger_angle)  # 取得手勢所回傳的內容
 		# return sub_hand_text, sub_finger_points, sub_Pose, sub_Pose1, Mode
 	Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,main_Pose1, sub_Pose1, menu, frame, colormain)
-	
-	smailblack1 = addText(smailblack1, "主手({})手勢: {}".format(Main_hand,main_hand_text),(smailblack1.shape[1] - 150,smailblack1.shape[0] - 40), (255, 255, 0),15)	#通道rgb
-	smailblack1 = addText(smailblack1, "副手手勢: {}".format(sub_hand_text),(smailblack1.shape[1] - 100,smailblack1.shape[0] - 20), (255, 255, 0),15)	#通道rgb
+	if Main_hand == 'Right':
+		mainhand = "右手"
+	elif Main_hand == 'Left':
+		mainhand = "左手"
+	else:
+		pass
+	smailblack1 = addText(smailblack1, "主手({})手勢: {}".format(mainhand,main_hand_text),(smailblack1.shape[1] - 145,smailblack1.shape[0] - 60), (255, 255, 0),15)	#通道rgb
+	smailblack1 = addText(smailblack1, "副手手勢: {}".format(sub_hand_text),(smailblack1.shape[1] - 100,smailblack1.shape[0] - 40), (255, 255, 0),15)	#通道rgb
+	smailblack1 = addText(smailblack1, "雙手張開，清除畫面",(smailblack1.shape[1] - 145,smailblack1.shape[0] - 20), (255, 0, 0),15)	#通道rgb
 
 	return main_mouse_pos, sub_mouse_pos, sub_hand_text
 
@@ -275,7 +281,7 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 	if Mode == 'Draw' and sub_hand_text == '8':
 		mod = '4'
 		Mode = 'Draw'
-	if Mode == 'Draw' and sub_hand_text != '8':
+	if Mode == 'Draw' and sub_hand_text != '8' and mod != '4':
 		smailblack1 = addText(smailblack1, "主手伸出食指開始作畫",(30,30), (255, 255, 0),15)	#使用者文字
 		smailblack1 = addText(smailblack1, "副手伸出食指呼叫功能板",(30,60), (255, 255, 0),15)	#使用者文字
 	elif Mode == 'Func' and mod == 1:
@@ -292,13 +298,14 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		smailblack1 = addText(smailblack1, "移動整隻手掌調整畫面位置",(30,60), (0, 255, 255),20)		#使用者文字
 		smailblack1 = addText(smailblack1, "(主手比'五'退出，回到功能板)",(30,90), (0, 255, 255),20)		#使用者文字
 	elif mod == 'graphics' and Mode != 'square' and Mode != 'round':
-		smailblack1 = addText(smailblack1, "副手食指操控",(30,30), (0, 255, 255),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "副手食指操控",(30,30), (0, 255, 125),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "主手比'五'上一頁",(30,60), (0, 255, 125),20)		#使用者文字
 	elif Mode == 'square'or Mode == 'round':
-		smailblack1 = addText(smailblack1, "雙手食指控制",(30,30), (0, 255, 255),20)		#使用者文字
-		smailblack1 = addText(smailblack1, "主手比'YA'確定",(30,60), (0, 255, 255),20)		#使用者文字
-		smailblack1 = addText(smailblack1, "主手比'五'退出",(30,90), (0, 255, 255),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "雙手食指控制",(30,30), (0, 97, 205),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "主手比'YA'確定",(30,60), (0, 97, 205),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "主手比'五'退出",(30,90), (0, 97, 205),20)		#使用者文字
 	elif Mode == "Draw" and mod == '4':
-		smailblack1 = addText(smailblack1, "副手比YA退出模式",(30,30), (0, 255, 255),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "副手比YA退出模式",(30,30), (87, 205, 55),20)		#使用者文字
 	else:
 		pass
 	if Mode == 'Draw' and main_hand_text == '1' and sub_hand_text != '8':
