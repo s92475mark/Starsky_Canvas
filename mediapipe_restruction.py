@@ -14,6 +14,7 @@ import numpy as np
 import pyaudio
 import requests
 from keras.models import load_model
+from PIL import Image, ImageDraw, ImageFont
 from playsound import playsound  # pip install playsound==1.2.2
 from pydub import AudioSegment  # 載入 pydub 的 AudioSegment 模組
 from pydub.playback import play  # 載入 pydub.playback 的 play 模組
@@ -71,13 +72,27 @@ pics = ['pig', 'smile', 'money', 'heart', 'plans']
 sub_hand_text = '-1'
 text=1
 
+def addText(img, text,i, color,size):
+	# 判断图片是否为ndarray格式，转为RGB图片
+	if (isinstance(img, np.ndarray)):
+		img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+	draw = ImageDraw.Draw(img)
+	# 参数依次为 字体、字体大小、编码
+	fontStyle = ImageFont.truetype("font/simsun.ttc", size, encoding="utf-8")
+	# 参数依次为位置、文本、颜色、字体
+	draw.text(i, text, color, font=fontStyle)
+
+	# 转回BGR图片、ndarray格式
+	return cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2BGR)
+
 def graphics_menu():
 	graphics_menu = np.full((int(frame.shape[0]), int(frame.shape[1] / 4), 3), (0, 0, 0), np.uint8)  # 產生視訊畫面大小的黑色的圖
 	cv2.rectangle(graphics_menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(graphics_menu, "square", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	graphics_menu = addText(graphics_menu, "矩形",(50,15), (255, 255,0),20)		#通道rgb
+	# cv2.putText(graphics_menu, "square", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(graphics_menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(graphics_menu, 'round', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-
+	graphics_menu = addText(graphics_menu, "圓形",(50,75), ( 255,255, 0),20)		#通道rgb
+	# cv2.putText(graphics_menu, 'round', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 	return graphics_menu
 
 
@@ -90,7 +105,8 @@ def Mouse_Pos(Pos):  # 轉換成鼠標層座標
 	return Pos
 
 
-def Mouse(Canvas, main_MousePose, sub_MousePose, mod):
+def Mouse(Canvas, main_MousePose, sub_MousePose):
+	global mod
 	MouseLevel = np.full((Canvas.shape[0], Canvas.shape[1], 3), (0, 0, 0), np.uint8)  # 產生與newblack大小相同黑色的圖
 	if mod != 4:
 		MouseLevel = cv2.circle(MouseLevel, main_MousePose, 10, (255, 255, 255), -1)  # 在這層上面點上主手白色鼠標
@@ -134,8 +150,8 @@ def Hand_Text(finger_angle):  # 根據手指角度的串列內容，返回對應
 		return '4'  # 比讚
 	elif f0 < 50 and f1 < 50 and f2 >= 50 and f3 >= 50 and f4 < 50:
 		return '6'  # disco
-	elif f0 < 50 and f1 < 50 and f2 >= 50 and f3 >= 50 and f4 >= 50:
-		return '7'  # child
+	elif f0 < 50 and f1 < 50 and f2 <= 50 and f3 >= 50 and f4 >= 50:
+		return '8'  # child
 	elif f0 >= 50 and f1 < 50 and f2 < 50 and f3 < 50 and f4 >= 50:
 		return '3'  # sunglass
 	else:
@@ -169,22 +185,11 @@ def hand_angle(hand_):  # 計算五隻手指的角度函式
 
 def ScalingDisplacement(newblack, lost_pix, offset):  # 畫布的縮放位移
 	smailblack = newblack.copy()  # 複製
-	# smailblack1 = smailblack[int(lost_pix+offset[1]):int(newblack.shape[0]-lost_pix+offset[1]),
-	# int(lost_pix + offset[0]):int(newblack.shape[1]-lost_pix + offset[0])]	#
-	# print(offset[0],(int(newblack.shape[1] * lost_pix) + offset[0]))
-	smailblack1 = smailblack[(offset[1]):(int(newblack.shape[0] * lost_pix) + offset[1]),
-				offset[0]:(int(newblack.shape[1] * lost_pix) + offset[0])]
-
+	smailblack1 = smailblack[(offset[1]):(int(newblack.shape[0] * lost_pix) + offset[1]),offset[0]:(int(newblack.shape[1] * lost_pix) + offset[0])]
 	newblack1 = newblack.copy()
-	cv2.rectangle(newblack1, ((offset[0]), (offset[1])),
-				(int(newblack.shape[1] * lost_pix + offset[0]), int(newblack.shape[0] * lost_pix + offset[1])),
-				(255, 255, 0), 3)
-	# print(newblack.shape)
+	cv2.rectangle(newblack1, ((offset[0]), (offset[1])),(int(newblack.shape[1] * lost_pix + offset[0]), int(newblack.shape[0] * lost_pix + offset[1])),(255, 255, 0), 3)
 	smailblack1 = cv2.resize(smailblack1, (newblack.shape[1], newblack.shape[0]), interpolation=cv2.INTER_AREA)
 	cv2.imshow("newblack1", newblack1)
-
-	# newblack3 = cv2.resize(smailblack1, ((newblack.shape[1]-(lost_pix * 2)),(newblack.shape[0]-(lost_pix * 2))), interpolation=cv2.INTER_AREA)
-	# newblack[lost_pix:(newblack.shape[0]-lost_pix),lost_pix:(newblack.shape[1]-lost_pix)] = newblack3
 
 	return smailblack1
 
@@ -201,7 +206,7 @@ def ScalingDisplacement(newblack, lost_pix, offset):  # 畫布的縮放位移
 
 
 def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分別處理左右手座標之副程式	(左手要做什麼，右手要做什麼 分別計算)
-	global frame, color
+	global frame, color,smailblack1
 
 	# 若手不再畫面內，重設參數(??)
 	main_finger_points = []  # 記錄主手指節點座標的串列
@@ -221,21 +226,17 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 		if hands_LR[i] == Main_hand:
 			main_Pose = (hands_Pose[i])  # 當前抓取主手手部21個座標
 			# print(main_Pose.landmark[8])
-			main_Pose1 = [int(main_Pose.landmark[8].x * frame.shape[1]),
-						  int(main_Pose.landmark[8].y * frame.shape[0])]  # 當前抓取到的手的食指座標
+			main_Pose1 = [int(main_Pose.landmark[8].x * frame.shape[1]),int(main_Pose.landmark[8].y * frame.shape[0])]  # 當前抓取到的手的食指座標
 			# print(main_Pose1)
 			# 顯示主手藍色鼠標於監視器上
-			main_mouse_pos = [int(main_Pose.landmark[8].x * frame.shape[1]),
-							  int(main_Pose.landmark[8].y * frame.shape[0])]  # 主手食指 給鼠標用
+			main_mouse_pos = [int(main_Pose.landmark[8].x * frame.shape[1]),int(main_Pose.landmark[8].y * frame.shape[0])]  # 主手食指 給鼠標用
 			frame = cv2.circle(frame, main_Pose1, 10, Hand_Mark_blue, -1)  # 鼠標藍色 顯示於 監視器上
 
 			### 將主手 21 個節點換算成座標，記錄到 finger_points
-			# print(main_Pose.landmark[8].z)
 			for i in main_Pose.landmark:
 				x = i.x * frame.shape[1]
 				y = i.y * frame.shape[0]
 				main_finger_points.append((x, y))
-
 			main_finger_angle = hand_angle(main_finger_points)  # 計算手指角度，回傳長度為 5 的串列
 			# 判斷手勢
 			main_hand_text = Hand_Text(main_finger_angle)  # 取得手勢所回傳的內容
@@ -260,20 +261,47 @@ def PointPprocessing(hands_Pose, hands_LR, menu, Main_hand, colormain):  # 分�
 			sub_finger_angle = hand_angle(sub_finger_points)  # 計算手指角度，回傳長度為 5 的串列
 			sub_hand_text = Hand_Text(sub_finger_angle)  # 取得手勢所回傳的內容
 		# return sub_hand_text, sub_finger_points, sub_Pose, sub_Pose1, Mode
-	Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,
-					main_Pose1, sub_Pose1, menu, frame, colormain)
+	Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,main_Pose1, sub_Pose1, menu, frame, colormain)
+	
+	smailblack1 = addText(smailblack1, "主手({})手勢: {}".format(Main_hand,main_hand_text),(smailblack1.shape[1] - 150,smailblack1.shape[0] - 40), (255, 255, 0),15)	#通道rgb
+	smailblack1 = addText(smailblack1, "副手手勢: {}".format(sub_hand_text),(smailblack1.shape[1] - 100,smailblack1.shape[0] - 20), (255, 255, 0),15)	#通道rgb
 
 	return main_mouse_pos, sub_mouse_pos, sub_hand_text
 
 
-def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,
-					main_Pose1, sub_Pose1, menu, frame, colormain):
+def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points, main_Pose, sub_Pose,main_Pose1, sub_Pose1, menu, frame, colormain):
 	# 主手執行作畫
 	global lost_pix, dots, color, Mode, colorx, colory, colorz, mod, smailblack1, fingertip, r_standard, middle_standard, time_standard_long, time_standard, sub_Pose2, main_Pose2, distance, newblack, token, pic_change, Mode, voice_check_func, voice_on, cover_pics,text
-	if Mode == 'Draw' and sub_hand_text == '7':
+	if Mode == 'Draw' and sub_hand_text == '8':
 		mod = '4'
 		Mode = 'Draw'
-	if Mode == 'Draw' and main_hand_text == '1' and sub_hand_text != '7':
+	if Mode == 'Draw' and sub_hand_text != '8':
+		smailblack1 = addText(smailblack1, "主手伸出食指開始作畫",(30,30), (255, 255, 0),15)	#使用者文字
+		smailblack1 = addText(smailblack1, "副手伸出食指呼叫功能板",(30,60), (255, 255, 0),15)	#使用者文字
+	elif Mode == 'Func' and mod == 1:
+		smailblack1 = addText(smailblack1, "副手食指操控",(30,30), (255, 127, 0),15)	#使用者文字
+		smailblack1 = addText(smailblack1, "副手比YA關閉功能板",(30,60), (255, 127, 0),15)	#使用者文字
+	elif Mode == 'Func' and mod == 2:
+		smailblack1 = addText(smailblack1, "副手食指操控",(30,30), (127, 127, 0),15)	#使用者文字
+		smailblack1 = addText(smailblack1, "副手比'五'關閉功能板",(30,60), (127, 127, 0),15)	#使用者文字
+	elif Mode == 'zoon_move' and mod != 4:
+		smailblack1 = addText(smailblack1, "功能:畫面調整(主手比'五'退出，回到功能板)",(30,30), (0, 255, 255),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "請將副手維持一個環形{}秒".format(time_standard_long),(30,60), (0, 255, 255),20)		#使用者文字
+	elif Mode == 'zoon_move' and mod == 4:
+		smailblack1 = addText(smailblack1, "張開/收起五指以調整畫布",(30,30), (0, 255, 255),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "移動整隻手掌調整畫面位置",(30,60), (0, 255, 255),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "(主手比'五'退出，回到功能板)",(30,90), (0, 255, 255),20)		#使用者文字
+	elif mod == 'graphics' and Mode != 'square' and Mode != 'round':
+		smailblack1 = addText(smailblack1, "副手食指操控",(30,30), (0, 255, 255),20)		#使用者文字
+	elif Mode == 'square'or Mode == 'round':
+		smailblack1 = addText(smailblack1, "雙手食指控制",(30,30), (0, 255, 255),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "主手比'YA'確定",(30,60), (0, 255, 255),20)		#使用者文字
+		smailblack1 = addText(smailblack1, "主手比'五'退出",(30,90), (0, 255, 255),20)		#使用者文字
+	elif Mode == "Draw" and mod == '4':
+		smailblack1 = addText(smailblack1, "副手比YA退出模式",(30,30), (0, 255, 255),20)		#使用者文字
+	else:
+		pass
+	if Mode == 'Draw' and main_hand_text == '1' and sub_hand_text != '8':
 		# 轉為"紅色鼠標"於監視器上
 		frame = cv2.circle(frame, main_Pose1, 10, Hand_Mark_red, -1)  # 鼠標藍色 顯示於 監視器上
 		fx = int(main_finger_points[8][0])  # 如果手勢為 1，記錄食指末端的座標
@@ -331,7 +359,8 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		fingertip_R = 0
 		middle = 0
 		move_range = 30
-		cv2.putText(smailblack1, "zoon_move", (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+		
+		# cv2.putText(smailblack1, "zoon_move", (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
 		if sub_finger_points:
 			try:
 				cv2.destroyWindow("menu")
@@ -371,7 +400,7 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 					time_standard = time.time()
 				if (time.time() - time_standard) > time_standard_long:
 					mod = 4
-			elif mod == 4:
+			elif mod == 4:	#正式開始放大縮小移動畫面
 				cv2.circle(smailblack1, (middle), (int(r_standard + r_standard / 5)), (255, 255, 0), 2)  # 放大縮小的範圍
 				cv2.circle(smailblack1, (middle), int(r_standard - r_standard / 7), (255, 255, 0), 2)  # 放大縮小的範圍
 				cv2.line(smailblack1, (middle), (middle_standard), color, 5)
@@ -562,97 +591,95 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		with mp_face_detection.FaceDetection(
 				min_detection_confidence=0.7) as face_detection:
 
-			while cap.isOpened():
-				success, image = cap.read()
-				imgFront = cv2.imread("canvas.png", cv2.IMREAD_UNCHANGED)
-				s_h, s_w, _ = imgFront.shape
+			# while cap.isOpened():
+			success, image = cap.read()
+			imgFront = cv2.imread("canvas.png", cv2.IMREAD_UNCHANGED)
+			s_h, s_w, _ = imgFront.shape
 
-				imageHeight, imageWidth, _ = image.shape
-				# 將BGR轉換成RGB, 並使用Mediapipe人臉偵測進行處理
-				results = face_detection.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+			imageHeight, imageWidth, _ = image.shape
+			# 將BGR轉換成RGB, 並使用Mediapipe人臉偵測進行處理
+			results = face_detection.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
-				# 繪製每張人臉的臉部偵測
-				if results.detections:
-					for detection in results.detections:
-						# 鼻子
-						normalizedLandmark = mp_face_detection.get_key_point(detection,mp_face_detection.FaceKeyPoint.NOSE_TIP)
-						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x,normalizedLandmark.y,imageWidth, imageHeight)
-						Nose_tip_x = pixelCoordinatesLandmark[0]
-						Nose_tip_y = pixelCoordinatesLandmark[1]
-						# 左耳
-						normalizedLandmark = mp_face_detection.get_key_point(detection,mp_face_detection.FaceKeyPoint.LEFT_EAR_TRAGION)
-						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x,normalizedLandmark.y,imageWidth, imageHeight)
-						Left_Ear_x = pixelCoordinatesLandmark[0]
-						Left_Ear_y = pixelCoordinatesLandmark[1]
-						# 右耳
-						normalizedLandmark = mp_face_detection.get_key_point(detection,mp_face_detection.FaceKeyPoint.RIGHT_EAR_TRAGION)
-						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x,normalizedLandmark.y,imageWidth, imageHeight)
-						Right_Ear_x = pixelCoordinatesLandmark[0]
-						Right_Ear_y = pixelCoordinatesLandmark[1]
-						# 左眼
-						normalizedLandmark = mp_face_detection.get_key_point(detection,mp_face_detection.FaceKeyPoint.LEFT_EYE)
-						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x,normalizedLandmark.y,imageWidth, imageHeight)
-						Left_EYE_x = pixelCoordinatesLandmark[0]
-						Left_EYE_y = pixelCoordinatesLandmark[1]
-						# 右眼
-						normalizedLandmark = mp_face_detection.get_key_point(detection,mp_face_detection.FaceKeyPoint.RIGHT_EYE)
-						pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x,normalizedLandmark.y,imageWidth, imageHeight)
-						Right_EYE_x = pixelCoordinatesLandmark[0]
-						Right_EYE_y = pixelCoordinatesLandmark[1]
+			# 繪製每張人臉的臉部偵測
+			if results.detections:
+				for detection in results.detections:
+					# 鼻子
+					normalizedLandmark = mp_face_detection.get_key_point(detection,mp_face_detection.FaceKeyPoint.NOSE_TIP)
+					pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x,normalizedLandmark.y,imageWidth, imageHeight)
+					Nose_tip_x = pixelCoordinatesLandmark[0]
+					Nose_tip_y = pixelCoordinatesLandmark[1]
+					# 左耳
+					normalizedLandmark = mp_face_detection.get_key_point(detection,mp_face_detection.FaceKeyPoint.LEFT_EAR_TRAGION)
+					pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x,normalizedLandmark.y,imageWidth, imageHeight)
+					Left_Ear_x = pixelCoordinatesLandmark[0]
+					Left_Ear_y = pixelCoordinatesLandmark[1]
+					# 右耳
+					normalizedLandmark = mp_face_detection.get_key_point(detection,mp_face_detection.FaceKeyPoint.RIGHT_EAR_TRAGION)
+					pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x,normalizedLandmark.y,imageWidth, imageHeight)
+					Right_Ear_x = pixelCoordinatesLandmark[0]
+					Right_Ear_y = pixelCoordinatesLandmark[1]
+					# # 左眼
+					# normalizedLandmark = mp_face_detection.get_key_point(detection,mp_face_detection.FaceKeyPoint.LEFT_EYE)
+					# pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x,normalizedLandmark.y,imageWidth, imageHeight)
+					# Left_EYE_x = pixelCoordinatesLandmark[0]
+					# Left_EYE_y = pixelCoordinatesLandmark[1]
+					# # 右眼
+					# normalizedLandmark = mp_face_detection.get_key_point(detection,mp_face_detection.FaceKeyPoint.RIGHT_EYE)
+					# pixelCoordinatesLandmark = mp_drawing._normalized_to_pixel_coordinates(normalizedLandmark.x,normalizedLandmark.y,imageWidth, imageHeight)
+					# Right_EYE_x = pixelCoordinatesLandmark[0]
+					# Right_EYE_y = pixelCoordinatesLandmark[1]
 
-						sunglass_width = Left_Ear_x - Right_Ear_x + 60
-						sunglass_height = int((s_h / s_w) * sunglass_width)
+					sunglass_width = Left_Ear_x - Right_Ear_x + 60
+					sunglass_height = int((s_h / s_w) * sunglass_width)
 
-						imgFront = cv2.resize(imgFront, (sunglass_width, sunglass_height), None, 0.3, 0.3)
+					imgFront = cv2.resize(imgFront, (sunglass_width, sunglass_height), None, 0.3, 0.3)
 
-						hf, wf, cf = imgFront.shape
-						hb, wb, cb = image.shape
+					hf, wf, cf = imgFront.shape
+					hb, wb, cb = image.shape
 
-						# 調整太陽眼鏡位置
-						y_adjust = int((sunglass_height / 90) * 90)
-						x_adjust = int((sunglass_width / 194) * 100)
+					# 調整太陽眼鏡位置
+					y_adjust = int((sunglass_height / 90) * 90)
+					x_adjust = int((sunglass_width / 194) * 100)
 
-						pos = [Nose_tip_x - x_adjust, Nose_tip_y - y_adjust]
+					pos = [Nose_tip_x - x_adjust, Nose_tip_y - y_adjust]
 
-						hf, wf, cf = imgFront.shape
-						hb, wb, cb = image.shape
-						*_, mask = cv2.split(imgFront)
-						maskBGRA = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGRA)
-						maskBGR = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-						imgRGBA = cv2.bitwise_and(imgFront, maskBGRA)
-						imgRGB = cv2.cvtColor(imgRGBA, cv2.COLOR_BGRA2BGR)
+					hf, wf, cf = imgFront.shape
+					hb, wb, cb = image.shape
+					*_, mask = cv2.split(imgFront)
+					maskBGRA = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGRA)
+					maskBGR = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+					imgRGBA = cv2.bitwise_and(imgFront, maskBGRA)
+					imgRGB = cv2.cvtColor(imgRGBA, cv2.COLOR_BGRA2BGR)
 
-						imgMaskFull = np.zeros((hb, wb, cb), np.uint8)
-						imgMaskFull[pos[1]:hf + pos[1], pos[0]:wf + pos[0], :] = imgRGB
-						imgMaskFull2 = np.ones((hb, wb, cb), np.uint8) * 255
-						maskBGRInv = cv2.bitwise_not(maskBGR)
-						imgMaskFull2[pos[1]:hf + pos[1], pos[0]:wf + pos[0], :] = maskBGRInv
+					imgMaskFull = np.zeros((hb, wb, cb), np.uint8)
+					imgMaskFull[pos[1]:hf + pos[1], pos[0]:wf + pos[0], :] = imgRGB
+					imgMaskFull2 = np.ones((hb, wb, cb), np.uint8) * 255
+					maskBGRInv = cv2.bitwise_not(maskBGR)
+					imgMaskFull2[pos[1]:hf + pos[1], pos[0]:wf + pos[0], :] = maskBGRInv
 
-						image = cv2.bitwise_and(image, imgMaskFull2)
-						image = cv2.bitwise_or(image, imgMaskFull)
+					image = cv2.bitwise_and(image, imgMaskFull2)
+					image = cv2.bitwise_or(image, imgMaskFull)
 
 				# cv2.namedWindow("Sunglass Effect",cv2.WINDOW_NORMAL)
 
-				def get_video_info(video_cap):
-					numFrames = int(video_cap.get(cv2.CAP_PROP_FRAME_COUNT))
-					fps = int(video_cap.get(cv2.CAP_PROP_FPS))
-					return numFrames, fps
+				# def get_video_info(video_cap):
+				# 	numFrames = int(video_cap.get(cv2.CAP_PROP_FRAME_COUNT))
+				# 	fps = int(video_cap.get(cv2.CAP_PROP_FPS))
+				# 	return numFrames, fps
 
 				# cTime = time.time()
 				# fps = 1 / (cTime - pTime)
 				# pTime = cTime
 
 				# 顯示FPS
-				cv2.putText(image, "FPS: {}".format(fps), (10, 70), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 1, (255, 193, 27),
-							1, cv2.LINE_AA)
+				# cv2.putText(image, "FPS: {}".format(fps), (10, 70), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 1, (255, 193, 27),1, cv2.LINE_AA)
 				# cv2.putText(image, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 255), 2, cv2.LINE_AA)
 				cv2.imshow('newblack1', image)
 
-				if cv2.waitKey(1) & 0xFF == ord('q'):
-					break
-
-				else:
-					return Mode
+				# if cv2.waitKey(1) & 0xFF == ord('q'):
+				# 	break
+				# else:
+				# 	return Mode
 		# 語音功能開關
 		# elif Mode == "Func" and sub_hand_text =="1":
 		# 	if 10<=int(sub_Pose1[0])<=40 and 370<=int(sub_Pose1[1])<=400 and voice_on == "on":
@@ -672,8 +699,8 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
 		# 		except:
 		# 			pass
 
-		cv2.rectangle(menu, (10, 370), (40, 400), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'Voice on/off', (50, 405), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	# 	cv2.rectangle(menu, (10, 370), (40, 400), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
+	# cv2.putText(menu, 'Voice on/off', (50, 405), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 
 	return Mode
 
@@ -696,25 +723,34 @@ def func_window():  ###準備功能視窗 -> menu
 	# x = 20
 	# y = int(((int(frame.shape[1] / 4)) - (len(collor) * x))/(len(collor)+1))
 	# print(y)
+	coord_x = 50
+	coord_y = 15
 	menu = np.full((10, 10, 3), (0, 0, 0), np.uint8)  # 產生10x10黑色的圖
 	menu = cv2.resize(menu, (int(frame.shape[1] / 3), frame.shape[0]), interpolation=cv2.INTER_AREA)  # 依照讀取到的畫面調整功能版大小
 	# smailblack2 = ScalingDisplacement(menu, lost_pix, offset)  # 縮小畫布
 	# for i in range(len(collor)):
 	#	 cv2.rectangle(menu, (int(y*(i+1) + x * i),30), (int((i+1)*(y+x)), (30+x)), collor[i], -1)  # 在畫面上方放入紅色正方形
 	cv2.rectangle(menu, (10, 10), (40, 40), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, "color", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	menu = addText(menu, "顏色調整",(coord_x, coord_y), (0, 255, 255),20)	#通道rgb
+	# cv2.putText(menu, "color", (50, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 70), (40, 100), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'Screen adjustment', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+	menu = addText(menu, "放大縮小",(coord_x, coord_y+60), (0, 255, 255),20)	#通道rgb
+	# cv2.putText(menu, 'Screen adjustment', (50, 85), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 130), (40, 160), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'graphics', (50, 145), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	menu = addText(menu, "選擇圖形",(coord_x, coord_y+120), (0, 255, 255),20)	#通道rgb
+	# cv2.putText(menu, 'graphics', (50, 145), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 190), (40, 220), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'ChildMode', (50, 205), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	menu = addText(menu, "兒童模式",(coord_x, coord_y+180), (0, 255, 255),20)	#通道rgb
+	# cv2.putText(menu, 'ChildMode', (50, 205), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 250), (40, 280), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'Save and line', (50, 265), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	menu = addText(menu, "儲存上傳",(coord_x, coord_y+240), (0, 255, 255),20)	#通道rgb
+	# cv2.putText(menu, 'Save and line', (50, 265), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 310), (40, 340), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形
-	cv2.putText(menu, 'Exit', (50, 325), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	menu = addText(menu, "退出程式",(coord_x, coord_y+300), (0, 255, 255),20)	#通道rgb
+	# cv2.putText(menu, 'Exit', (50, 325), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 	cv2.rectangle(menu, (10, 370), (40, 400), (0, 0, 255), -1)  # 在畫面上方放入紅色正方形 語音開關按鈕
-	cv2.putText(menu, 'Voice on/off', (50, 385), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
+	menu = addText(menu, "聲音開關",(coord_x, coord_y+360), (0, 255, 255),20)	#通道rgb
+	# cv2.putText(menu, 'Voice on/off', (50, 385), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1, cv2.LINE_AA)
 
 	return menu
 
@@ -1048,11 +1084,12 @@ if __name__ == '__main__':
 		# Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finger_points,main_Pose, sub_Pose,main_Pose1, sub_Pose1)
 		main_MousePose = Mouse_Pos(main_MousePose)
 		sub_MousePose = Mouse_Pos(sub_MousePose)
-		TrueCanvas = Mouse(smailblack1, main_MousePose, sub_MousePose, mod)  # 加入鼠標 回傳最終畫布
+		TrueCanvas = Mouse(smailblack1, main_MousePose, sub_MousePose)  # 加入鼠標 回傳最終畫布
 		cTime = time.time()
 		fps = 1 / (cTime - pTime)
 		pTime = cTime
 		cv2.putText(frame, str(int(fps)), (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1, cv2.LINE_AA)
+		
 		cv2.imshow("live", frame)
 		cv2.imshow("TrueCanvas", TrueCanvas)
 		# time.sleep(0.5)	#跑影片要記得設time.sleep，跑視訊鏡頭要記得關  我花了40分鐘在debug為甚麼我的fps不到1
