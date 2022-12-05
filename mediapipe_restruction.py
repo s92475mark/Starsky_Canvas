@@ -576,8 +576,8 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
         voice_check_func = ""
         newblack = np.full((frame.shape[0], frame.shape[1], 3), (0, 0, 0), np.uint8)
 
-
-    elif Mode == 'Draw' and main_hand_text == '6':
+    # 若為繪畫模式, 右手比三的時候
+    elif Mode == 'Draw' and main_hand_text == '3':
         # 起始座標
         ix, iy = 0, 0
 
@@ -615,8 +615,8 @@ def Function_Select(main_hand_text, sub_hand_text, main_finger_points, sub_finge
                 break
             else:
                 return Mode
-    # 若為繪畫模式, 右手比三的時候
-    elif Mode == 'Draw' and main_hand_text == '3':
+    # 若為繪畫模式, 右手拇指,食指,小拇指伸直時啟動. 手放開恢復到繪畫模式.
+    elif Mode == 'Draw' and main_hand_text == '6':
         # 建立偵測方法
         mp_face_detection = mp.solutions.face_detection
         # 建立繪圖方法
